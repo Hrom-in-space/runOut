@@ -4,3 +4,10 @@ tasks:
   run:
     cmds:
       - go run main.go
+
+  devdb.up:
+    cmds:
+      - docker-compose up
+  devdb.down:
+    cmds:
+      - docker-compose down
