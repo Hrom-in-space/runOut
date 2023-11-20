@@ -72,6 +72,7 @@ func main() {
 				continue
 			}
 			slog.Info("Transcription created", slog.String("text", resp.Text))
+			continue
 
 			createThreadAndRunRequest := openai.CreateThreadAndRunRequest{
 				RunRequest: openai.RunRequest{
@@ -109,12 +110,10 @@ func main() {
 		}
 	}()
 
-	// TODO: handler GET /needs
-	// TODO: handler POST /needs
 	router := mux.NewRouter()
 	router.Path("/needs").Methods(http.MethodPost).Handler(addNeed(audioChan))
 	router.Path("/needs").Methods(http.MethodGet).Handler(listNeeds(dbPool))
-
+	router.PathPrefix("/").Handler(http.StripPrefix("/", http.FileServer(http.Dir("./front"))))
 	// TODO: graceful shutdown
 	// TODO: get port from config
 	slog.Info("Server is running on http://localhost:8080")
@@ -133,6 +132,7 @@ func main() {
 
 func addNeed(ch chan<- Audio) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// enableCors(&w)
 		// TODO: security check real file type https://github.com/h2non/filetype
 		audioFormats := []string{
 			"flac",
@@ -283,3 +283,9 @@ func parseNeedsArgs(arg string) (string, error) {
 type Need struct {
 	Name string `json:"name"`
 }
+
+// func enableCors(w *http.ResponseWriter) {
+// 	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+// 	(*w).Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+// 	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+// }

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Аудио Рекордер</title>
+    <style>
+        /* Здесь можно добавить CSS для стилизации */
+        .button {
+            margin: 10px;
+            padding: 10px;
+        }
+
+        /* CSS для анимации индикатора */
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .startRecord {
+            border-radius: 50%; /* Makes the button round */
+            width: 150px; /* Increase width of the button */
+            height: 150px; /* Increase height of the button */
+            background-color: #4CAF50; /* Green background */
+            color: white; /* White text color */
+            border: none; /* No border */
+            text-align: center; /* Center the text */
+            text-decoration: none; /* Remove underline */
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer; /* Change cursor to pointer when hovering over the button */
+            transition-duration: 0.4s; /* Transition effect */
+        }
+        .startRecord:hover {
+            background-color: #45a049; /* Change background color when hovering */
+        }
+
+        .recording {
+            border-radius: 50%; /* Makes the button round */
+            width: 150px; /* Increase width of the button */
+            height: 150px; /* Increase height of the button */
+            background-color: #FF0000; /* Red background */
+            color: white; /* White text color */
+            border: none; /* No border */
+            text-align: center; /* Center the text */
+            text-decoration: none; /* Remove underline */
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer; /* Change cursor to pointer when hovering over the button */
+            transition-duration: 0.4s; /* Transition effect */
+            animation: blink 1s linear infinite;
+        }
+        .recording:hover {
+            background-color: #B22222; /* Change background color when hovering */
+        }
+
+    </style>
+</head>
+    <body>
+        <button id="startRecord" class="startRecord">Записать</button>
+        <script src="./script.js"></script>
+    </body>
+</html>
