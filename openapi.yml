@@ -1,0 +1,39 @@
+openapi: 3.0.0
+info:
+  title: Run out Service API
+  description: service collect what you need to buy
+  version: 1.0.0
+paths:
+  /needs:
+    post:
+      summary: Add a new think what you need to buy
+      parameters:
+        - in: query
+          name: n
+          description: add what you need to buy
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: added successfully
+        '400':
+          description: Invalid request. name of needs is required
+        '500':
+          description: Internal server error
+    get:
+      summary: List what you need to buy
+      responses:
+        '200':
+          description: A list of needs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+        '500':
+          description: Internal server error

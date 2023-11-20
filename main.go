@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"log/slog"
@@ -77,8 +78,6 @@ func addNeed(pool *sql.DB) http.HandlerFunc {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-
-		fmt.Fprintf(w, "need %v added", needName)
 	}
 }
 
@@ -92,6 +91,11 @@ func listNeeds(pool *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		fmt.Fprintf(w, "need required: %v", needs)
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(needs)
+		if err != nil {
+			slog.Error("Encode needs", err)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
 	}
 }
