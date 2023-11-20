@@ -52,7 +52,6 @@ func main() {
 	err = dbPool.Ping()
 	if err != nil {
 		slog.Error("no dbPool connection: ", err)
-		os.Exit(1)
 	}
 
 	// OpenAI client

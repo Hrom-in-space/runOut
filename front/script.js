@@ -56,7 +56,7 @@ function stopRecording() {
 }
 
 function sendAudioBlob(audioBlob) {
-    fetch('https://skilled-cockatoo-ghastly.ngrok-free.app/needs', {
+    fetch('/needs', {
         method: 'POST',
         headers: {
             'Content-Type': 'audio/mp4'
