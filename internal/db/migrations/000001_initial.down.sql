@@ -1,5 +1,5 @@
 BEGIN;
 
-DROP TABLE authors;
+DROP TABLE needs;
 
 COMMIT;

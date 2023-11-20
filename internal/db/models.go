@@ -4,12 +4,9 @@
 
 package db
 
-import (
-	"database/sql"
-)
+import ()
 
-type Author struct {
+type Need struct {
 	ID   int64
 	Name string
-	Bio  sql.NullString
 }

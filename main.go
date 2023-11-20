@@ -42,7 +42,8 @@ func main() {
 	// TODO: handler GET /needs
 	// TODO: handler POST /needs
 	router := mux.NewRouter()
-	router.HandleFunc("/", addNeeds(dbPool))
+	// router.HandleFunc("/needs", addNeeds(dbPool))
+	router.Path("/needs").Methods(http.MethodPost).Handler(addNeeds(dbPool))
 
 	// TODO: graceful shutdown
 	// TODO: get port from config
@@ -62,17 +63,20 @@ func main() {
 
 func addNeeds(pool *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		needName := r.URL.Query().Get("n")
+		if needName == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
 		q := db.New(pool)
-		_, err := q.CreateAuthor(r.Context(), db.CreateAuthorParams{
-			Name: "test",
-			Bio:  sql.NullString{String: "test", Valid: true},
-		})
+		err := q.CreateNeed(r.Context(), needName)
 		if err != nil {
-			slog.Error("CreateAuthor", err)
+			slog.Error("CreateNeed", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		fmt.Fprintf(w, "Hello, you've requested: %s\n", r.URL.Path)
+		fmt.Fprintf(w, "need %v added", needName)
 	}
 }

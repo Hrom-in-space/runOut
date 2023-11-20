@@ -1,9 +1,8 @@
 BEGIN;
 
-CREATE TABLE authors (
+CREATE TABLE needs (
     id   BIGSERIAL PRIMARY KEY,
-    name text      NOT NULL,
-    bio  text
+    name text      NOT NULL
 );
 
 COMMIT;
