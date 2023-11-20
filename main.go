@@ -46,6 +46,7 @@ func main() {
 	// router.HandleFunc("/needs", addNeeds(dbPool))
 	router.Path("/needs").Methods(http.MethodPost).Handler(addNeed(dbPool))
 	router.Path("/needs").Methods(http.MethodGet).Handler(listNeeds(dbPool))
+	router.Path("/models").Methods(http.MethodGet).Handler(listModels())
 
 	// TODO: graceful shutdown
 	// TODO: get port from config
@@ -97,5 +98,11 @@ func listNeeds(pool *sql.DB) http.HandlerFunc {
 			slog.Error("Encode needs", err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
+	}
+}
+
+func listModels() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(os.Stdout, "Response from `ListModels`")
 	}
 }

@@ -21,7 +21,7 @@ tasks:
     cmds:
       - migrate -database postgres://postgres:postgres@localhost:5432/mydatabase?sslmode=disable -path ./internal/db/migrations/ {{.CLI_ARGS}}
 
-  sqlc.generate:
+  gen.sqlc:
     cmds:
       - sqlc generate
 
