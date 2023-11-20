@@ -43,7 +43,7 @@ func main() {
 	}
 
 	// OpenAI client
-	oaiClient := openai.NewClient("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")
+	oaiClient := openai.NewClient(os.Getenv("OPENAI_API_KEY"))
 
 	// TODO: handler GET /needs
 	// TODO: handler POST /needs
