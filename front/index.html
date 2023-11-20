@@ -20,15 +20,15 @@
 
         .startRecord {
             border-radius: 50%; /* Makes the button round */
-            width: 150px; /* Increase width of the button */
-            height: 150px; /* Increase height of the button */
+            width: 30vw; /* Increase width of the button */
+            height: 30vw; /* Increase height of the button */
             background-color: #4CAF50; /* Green background */
             color: white; /* White text color */
             border: none; /* No border */
             text-align: center; /* Center the text */
             text-decoration: none; /* Remove underline */
             display: inline-block;
-            font-size: 16px;
+            font-size: 24px;
             margin: 4px 2px;
             cursor: pointer; /* Change cursor to pointer when hovering over the button */
             transition-duration: 0.4s; /* Transition effect */
@@ -38,23 +38,19 @@
         }
 
         .recording {
-            border-radius: 50%; /* Makes the button round */
-            width: 150px; /* Increase width of the button */
-            height: 150px; /* Increase height of the button */
             background-color: #FF0000; /* Red background */
-            color: white; /* White text color */
-            border: none; /* No border */
-            text-align: center; /* Center the text */
-            text-decoration: none; /* Remove underline */
-            display: inline-block;
-            font-size: 16px;
-            margin: 4px 2px;
-            cursor: pointer; /* Change cursor to pointer when hovering over the button */
-            transition-duration: 0.4s; /* Transition effect */
             animation: blink 1s linear infinite;
         }
         .recording:hover {
             background-color: #B22222; /* Change background color when hovering */
+        }
+
+        @media (max-width: 479px) {
+            .startRecord {
+                margin-top: 50vh;
+                width: 90vw; /* Increase width of the button */
+                height: 90vw;
+            }
         }
 
     </style>

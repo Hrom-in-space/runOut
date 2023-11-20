@@ -6,7 +6,8 @@ let audioUrl;
 // Получение доступа к микрофону и инициализация mediaRecorder
 navigator.mediaDevices.getUserMedia({ audio: true })
     .then(stream => {
-        let options = { mimeType: 'audio/webm' };
+        // TODO: add audio/webm support
+        let options = { mimeType: 'audio/mp4' };
         mediaRecorder = new MediaRecorder(stream, options);
 
         mediaRecorder.ondataavailable = event => {
@@ -15,9 +16,10 @@ navigator.mediaDevices.getUserMedia({ audio: true })
 
         // Установка обработчика onstop здесь, после инициализации mediaRecorder
         mediaRecorder.onstop = () => {
-            audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            audioBlob = new Blob(audioChunks, { type: 'audio/mp4' });
             audioUrl = URL.createObjectURL(audioBlob);
             audioChunks = [];
+            playAudio(audioUrl);
             sendAudioBlob(audioBlob);
         };
     })
@@ -41,11 +43,8 @@ document.getElementById('startRecord').addEventListener('click', () => {
 function startRecording() {
     if (mediaRecorder && mediaRecorder.state !== 'recording') {
         audioChunks = [];
-        mediaRecorder.start();
+        mediaRecorder.start(1000);
         document.getElementById('startRecord').textContent = 'Идет запись';
-        // document.getElementById('startRecord').style.color = 'red';
-        // document.getElementById('startRecord').style.animation = 'blink 1s linear infinite'
-
     }
 }
 
@@ -54,15 +53,13 @@ function stopRecording() {
         mediaRecorder.stop();
     }
     document.getElementById('startRecord').textContent = 'Записать';
-    // document.getElementById('startRecord').style.color = 'white';
-    // document.getElementById('startRecord').style.animation = 'none'
 }
 
 function sendAudioBlob(audioBlob) {
-    fetch('http://localhost:8080/needs', {
+    fetch('https://skilled-cockatoo-ghastly.ngrok-free.app/needs', {
         method: 'POST',
         headers: {
-            'Content-Type': 'audio/webm'
+            'Content-Type': 'audio/mp4'
         },
         body: audioBlob
     })
@@ -73,4 +70,9 @@ function sendAudioBlob(audioBlob) {
         .catch(error => {
             console.error('Ошибка отправки:', error);
         });
+}
+
+function playAudio(audioUrl) {
+    let audio = new Audio(audioUrl);
+    audio.play();
 }
