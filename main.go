@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	"github.com/sashabaranov/go-openai"
 
 	"runout/internal/db"
 )
@@ -22,6 +23,7 @@ func main() {
 	log.SetFlags(log.Ltime | log.Lshortfile)
 	// TODO: add config
 
+	// Database
 	psqlInfo := fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		"localhost", 5432, "postgres", "postgres", "mydatabase")
@@ -40,13 +42,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	// OpenAI client
+	oaiClient := openai.NewClient("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")
+
 	// TODO: handler GET /needs
 	// TODO: handler POST /needs
 	router := mux.NewRouter()
-	// router.HandleFunc("/needs", addNeeds(dbPool))
-	router.Path("/needs").Methods(http.MethodPost).Handler(addNeed(dbPool))
+	router.Path("/needs").Methods(http.MethodPost).Handler(addNeed(dbPool, oaiClient))
 	router.Path("/needs").Methods(http.MethodGet).Handler(listNeeds(dbPool))
-	router.Path("/models").Methods(http.MethodGet).Handler(listModels())
 
 	// TODO: graceful shutdown
 	// TODO: get port from config
@@ -64,21 +67,42 @@ func main() {
 	}
 }
 
-func addNeed(pool *sql.DB) http.HandlerFunc {
+func addNeed(pool *sql.DB, oaiClient *openai.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		needName := r.URL.Query().Get("n")
-		if needName == "" {
+		// TODO: add all openai supported formats
+		if r.Header.Get("Content-Type") != "audio/mp3" {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		defer r.Body.Close()
 
-		q := db.New(pool)
-		err := q.CreateNeed(r.Context(), needName)
+		request := openai.AudioRequest{
+			Model:    "whisper-1",
+			FilePath: "need.mp3",
+			Reader:   r.Body,
+		}
+		resp, err := oaiClient.CreateTranscription(r.Context(), request)
 		if err != nil {
-			slog.Error("CreateNeed", err)
+			slog.Error("ListModels", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+
+		// TODO: add request to Assistant
+
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(resp.Text)
+		if err != nil {
+			slog.Error("Encode models", err)
+		}
+
+		// q := db.New(pool)
+		// err = q.CreateNeed(r.Context(), resp.Text)
+		// if err != nil {
+		// 	slog.Error("CreateNeed", err)
+		// 	w.WriteHeader(http.StatusInternalServerError)
+		// 	return
+		// }
 	}
 }
 
@@ -98,11 +122,5 @@ func listNeeds(pool *sql.DB) http.HandlerFunc {
 			slog.Error("Encode needs", err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
-	}
-}
-
-func listModels() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(os.Stdout, "Response from `ListModels`")
 	}
 }
