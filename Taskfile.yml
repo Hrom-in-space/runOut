@@ -24,3 +24,7 @@ tasks:
   sqlc.generate:
     cmds:
       - sqlc generate
+
+  ngrok.start:
+    cmds:
+      - ngrok start runout
