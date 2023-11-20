@@ -11,3 +11,12 @@ tasks:
   devdb.down:
     cmds:
       - docker-compose down
+
+  migration.create:
+    cmds:
+      - migrate create -seq -ext sql -dir ./internal/db/migrations/ {{.CLI_ARGS}}
+
+  # TODO: remove pg creds hardcode
+  migration:
+    cmds:
+      - migrate -database postgres://postgres:postgres@localhost:5432/mydatabase?sslmode=disable -path ./internal/db/migrations/ {{.CLI_ARGS}}
