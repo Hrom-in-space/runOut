@@ -43,7 +43,8 @@ func main() {
 	// TODO: handler POST /needs
 	router := mux.NewRouter()
 	// router.HandleFunc("/needs", addNeeds(dbPool))
-	router.Path("/needs").Methods(http.MethodPost).Handler(addNeeds(dbPool))
+	router.Path("/needs").Methods(http.MethodPost).Handler(addNeed(dbPool))
+	router.Path("/needs").Methods(http.MethodGet).Handler(listNeeds(dbPool))
 
 	// TODO: graceful shutdown
 	// TODO: get port from config
@@ -61,7 +62,7 @@ func main() {
 	}
 }
 
-func addNeeds(pool *sql.DB) http.HandlerFunc {
+func addNeed(pool *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		needName := r.URL.Query().Get("n")
 		if needName == "" {
@@ -78,5 +79,19 @@ func addNeeds(pool *sql.DB) http.HandlerFunc {
 		}
 
 		fmt.Fprintf(w, "need %v added", needName)
+	}
+}
+
+func listNeeds(pool *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		q := db.New(pool)
+		needs, err := q.ListNeeds(r.Context())
+		if err != nil {
+			slog.Error("ListNeeds", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		fmt.Fprintf(w, "need required: %v", needs)
 	}
 }
