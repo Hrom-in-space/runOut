@@ -31,3 +31,7 @@ tasks:
   ngrok.start:
     cmds:
       - ngrok start runout
+
+  dbtunnel:
+    cmds:
+      - ssh -L 5432:localhost:5432 -N $PROD_SERVER_HOST
