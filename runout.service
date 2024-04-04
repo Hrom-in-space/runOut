@@ -1,0 +1,12 @@
+[Unit]
+Description=My Application Service
+After=network.target
+
+[Service]
+User=app
+Group=app
+EnvironmentFile=/app/env
+ExecStart=/app/runout
+
+[Install]
+WantedBy=multi-user.target

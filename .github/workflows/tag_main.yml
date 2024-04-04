@@ -23,3 +23,17 @@ jobs:
           files: |
             runout-linux-amd64
             runout-darwin-arm64
+      - name: Deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd /app
+            sudo systemctl stop runout.service
+            rm runout
+            curl -L -o runout https://github.com/Hrom-in-space/runOut/releases/download/${{ github.ref_name }}/runout-linux-amd64
+            chmod +x runout
+            sudo systemctl start runout.service
