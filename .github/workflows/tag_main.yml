@@ -17,12 +17,15 @@ jobs:
         run: |
           GOOS=linux GOARCH=amd64 go build -o runout-linux-amd64
           GOOS=darwin GOARCH=arm64 go build -o runout-darwin-arm64
+      - name: create-archive
+        run: tar -czf migrations.tar.gz -C ./internal/db/migrations .
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             runout-linux-amd64
             runout-darwin-arm64
+            migrations.tar.gz
       - name: Deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -32,8 +35,18 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd /app
+            # останавливаем сервис
             sudo systemctl stop runout.service
-            rm runout
+            # Обновляем приложение
+            rm -rf runout
             curl -L -o runout https://github.com/Hrom-in-space/runOut/releases/download/${{ github.ref_name }}/runout-linux-amd64
             chmod +x runout
+            # Накатываем миграции
+            rm -rf migrations
+            mkdir -p migrations
+            curl -L -o runout https://github.com/Hrom-in-space/runOut/releases/download/${{ github.ref_name }}/migrations.tar.gz
+            tar -xzvf migrations.tar.gz -C migrations
+            rm -rf migrations.tar.gz
+            migrate -database postgres://app:app@localhost:5432/app?sslmode=disable -path ./migrations/ up
+            # Запускаем сервис
             sudo systemctl start runout.service
