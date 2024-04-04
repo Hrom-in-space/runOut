@@ -24,7 +24,7 @@ jobs:
             runout-linux-amd64
             runout-darwin-arm64
       - name: Deploy
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           port: ${{ secrets.SSH_PORT }}
