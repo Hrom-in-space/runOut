@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"embed"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"log/slog"
 	"net"
@@ -29,7 +32,14 @@ import (
 // TODO: fix all slog messages
 // TODO: удалять треды через сутки в фоне
 
+//go:embed front/*
+var static embed.FS
+
 func main() {
+	d := http.Dir("./front")
+	log.Println(d)
+	log.Println(static)
+
 	ctx := context.Background()
 	log.SetFlags(log.Ltime | log.Lshortfile)
 	// TODO: add config
@@ -109,7 +119,13 @@ func main() {
 	router := mux.NewRouter()
 	router.Path("/needs").Methods(http.MethodPost).Handler(addNeed(audioChan))
 	router.Path("/needs").Methods(http.MethodGet).Handler(listNeeds(dbPool))
-	router.PathPrefix("/").Handler(http.StripPrefix("/", http.FileServer(http.Dir("./front"))))
+
+	static, err := fs.Sub(static, "front")
+	if err != nil {
+		slog.Error("Sub", err)
+		os.Exit(1)
+	}
+	router.PathPrefix("/").Handler(http.StripPrefix("/", http.FileServerFS(static)))
 	// TODO: graceful shutdown
 	// TODO: get port from config
 	port := os.Getenv("PORT")
