@@ -44,7 +44,7 @@ jobs:
             # Накатываем миграции
             rm -rf migrations
             mkdir -p migrations
-            curl -L -o runout https://github.com/Hrom-in-space/runOut/releases/download/${{ github.ref_name }}/migrations.tar.gz
+            curl -L -o migrations.tar.gz https://github.com/Hrom-in-space/runOut/releases/download/${{ github.ref_name }}/migrations.tar.gz
             tar -xzvf migrations.tar.gz -C migrations
             rm -rf migrations.tar.gz
             migrate -database postgres://app:app@localhost:5432/app?sslmode=disable -path ./migrations/ up
