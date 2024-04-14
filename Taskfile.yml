@@ -19,10 +19,9 @@ tasks:
     cmds:
       - migrate create -seq -ext sql -dir ./internal/db/migrations/ {{.CLI_ARGS}}
 
-  # TODO: remove pg creds hardcode
   migration:
     cmds:
-      - migrate -database postgres://postgres:postgres@localhost:5432/mydatabase?sslmode=disable -path ./internal/db/migrations/ {{.CLI_ARGS}}
+      - migrate -database postgres://app:app@localhost:5432/app?sslmode=disable -path ./internal/db/migrations/ {{.CLI_ARGS}}
 
   gen.sqlc:
     cmds:
@@ -34,4 +33,4 @@ tasks:
 
   dbtunnel:
     cmds:
-      - ssh -L 5432:localhost:5432 -N $PROD_SERVER_HOST
+      - ssh -L 5432:localhost:5432 -N app@$PROD_SERVER_HOST

@@ -22,6 +22,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/sashabaranov/go-openai"
 
+	"runout/internal/config"
 	"runout/internal/db"
 	"runout/internal/utils"
 )
@@ -36,9 +37,11 @@ import (
 var static embed.FS
 
 func main() {
-	d := http.Dir("./front")
-	log.Println(d)
-	log.Println(static)
+	cfg, err := config.New()
+	if err != nil {
+		slog.Error("config.New", err)
+		os.Exit(1)
+	}
 
 	ctx := context.Background()
 	log.SetFlags(log.Ltime | log.Lshortfile)
@@ -49,7 +52,7 @@ func main() {
 	// Database
 	psqlInfo := fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		os.Getenv("PG_HOST"), 5432, os.Getenv("PG_USER"), os.Getenv("PG_PWD"), os.Getenv("PG_DB"))
+		cfg.PG.Host, cfg.PG.Port, cfg.PG.Username, cfg.PG.Password, cfg.PG.Database)
 	dbPool, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
 		slog.Error("dbPool open", err)
@@ -65,7 +68,7 @@ func main() {
 	}
 
 	// OpenAI client
-	oaiClient := openai.NewClient(os.Getenv("OPENAI_API_KEY"))
+	oaiClient := openai.NewClient(cfg.OpenAI.APIKey)
 
 	go func() {
 		for audio := range audioChan {
@@ -84,7 +87,7 @@ func main() {
 
 			createThreadAndRunRequest := openai.CreateThreadAndRunRequest{
 				RunRequest: openai.RunRequest{
-					AssistantID: os.Getenv("OPENAI_ASSISTANT_ID"),
+					AssistantID: cfg.OpenAI.AssistantID,
 				},
 				Thread: openai.ThreadRequest{
 					Messages: []openai.ThreadMessage{
@@ -127,11 +130,9 @@ func main() {
 	}
 	router.PathPrefix("/").Handler(http.StripPrefix("/", http.FileServerFS(static)))
 	// TODO: graceful shutdown
-	// TODO: get port from config
-	port := os.Getenv("PORT")
-	slog.Info("Server is running on http://localhost:" + port)
+	slog.Info("Server is running on http://localhost:" + cfg.Port)
 	httpServer := http.Server{
-		Addr:    ":" + port,
+		Addr:    ":" + cfg.Port,
 		Handler: router,
 		BaseContext: func(_ net.Listener) context.Context {
 			return ctx

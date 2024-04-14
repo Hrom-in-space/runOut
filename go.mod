@@ -8,3 +8,5 @@ require (
 )
 
 require github.com/sashabaranov/go-openai v1.17.8-0.20231115162518-18465723f7d9
+
+require github.com/caarlos0/env/v10 v10.0.0

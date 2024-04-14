@@ -5,9 +5,9 @@ services:
     image: postgres:16
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: mydatabase
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
     ports:
       - "5432:5432"
     volumes:
