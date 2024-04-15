@@ -6,5 +6,6 @@ func InSlice[T comparable](s []T, val T) bool {
 			return true
 		}
 	}
+
 	return false
 }

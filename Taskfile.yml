@@ -4,6 +4,10 @@ dotenv:
   - .env
 
 tasks:
+  lint:
+    cmds:
+      - golangci-lint run ./...
+
   run:
     cmds:
       - go run main.go

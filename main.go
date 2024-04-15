@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"embed"
-	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -36,6 +35,7 @@ import (
 //go:embed front/*
 var static embed.FS
 
+//nolint:funlen,cyclop
 func main() {
 	cfg, err := config.New()
 	if err != nil {
@@ -47,11 +47,12 @@ func main() {
 	log.SetFlags(log.Ltime | log.Lshortfile)
 	// TODO: add config
 
-	audioChan := make(chan Audio, 1000)
+	const audioChanSize = 1000
+	audioChan := make(chan Audio, audioChanSize)
 
 	// Database
 	psqlInfo := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		cfg.PG.Host, cfg.PG.Port, cfg.PG.Username, cfg.PG.Password, cfg.PG.Database)
 	dbPool, err := sql.Open("postgres", psqlInfo)
 	if err != nil {
@@ -126,14 +127,15 @@ func main() {
 	static, err := fs.Sub(static, "front")
 	if err != nil {
 		slog.Error("Sub", err)
-		os.Exit(1)
+		os.Exit(1) //nolint:gocritic
 	}
 	router.PathPrefix("/").Handler(http.StripPrefix("/", http.FileServerFS(static)))
 	// TODO: graceful shutdown
 	slog.Info("Server is running on http://localhost:" + cfg.Port)
 	httpServer := http.Server{
-		Addr:    ":" + cfg.Port,
-		Handler: router,
+		ReadHeaderTimeout: 5 * time.Second, //nolint:gomnd
+		Addr:              ":" + cfg.Port,
+		Handler:           router,
 		BaseContext: func(_ net.Listener) context.Context {
 			return ctx
 		},
@@ -144,8 +146,8 @@ func main() {
 	}
 }
 
-func addNeed(ch chan<- Audio) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func addNeed(audioCh chan<- Audio) http.HandlerFunc {
+	return func(writer http.ResponseWriter, req *http.Request) {
 		// enableCors(&w)
 		// TODO: security check real file type https://github.com/h2non/filetype
 		audioFormats := []string{
@@ -160,48 +162,50 @@ func addNeed(ch chan<- Audio) http.HandlerFunc {
 			"webm",
 		}
 
-		contentType := r.Header.Get("Content-Type")
+		contentType := req.Header.Get("Content-Type")
 		format := strings.Replace(contentType, "audio/", "", 1)
 		if !utils.InSlice(audioFormats, format) {
 			slog.Error("wrong Content-Type", slog.String("content-type", contentType))
-			w.WriteHeader(http.StatusBadRequest)
+			writer.WriteHeader(http.StatusBadRequest)
 			// TODO: return information about error
 			return
 		}
 
-		data, err := io.ReadAll(r.Body)
+		data, err := io.ReadAll(req.Body)
 		if err != nil {
 			slog.Error("ReadAll", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			writer.WriteHeader(http.StatusInternalServerError)
+
 			return
 		}
-		defer r.Body.Close()
+		defer req.Body.Close()
 
-		ch <- Audio{
+		audioCh <- Audio{
 			Data:   data,
 			Format: format,
 		}
 		slog.Info("Audio added", slog.String("format", format))
 
-		w.WriteHeader(http.StatusOK)
+		writer.WriteHeader(http.StatusOK)
 	}
 }
 
 func listNeeds(pool *sql.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(respWriter http.ResponseWriter, req *http.Request) {
 		q := db.New(pool)
-		needs, err := q.ListNeeds(r.Context())
+		needs, err := q.ListNeeds(req.Context())
 		if err != nil {
 			slog.Error("ListNeeds", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			respWriter.WriteHeader(http.StatusInternalServerError)
+
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		err = json.NewEncoder(w).Encode(needs)
+		respWriter.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(respWriter).Encode(needs)
 		if err != nil {
 			slog.Error("Encode needs", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			respWriter.WriteHeader(http.StatusInternalServerError)
 		}
 	}
 }
@@ -218,7 +222,9 @@ type RunManager struct {
 	Pool     *sql.DB
 }
 
+//nolint:cyclop
 func (r *RunManager) Run(ctx context.Context) error {
+	const defaultTimeout = time.Millisecond * 200
 	for {
 		run, err := r.Client.RetrieveRun(ctx, r.TheradID, r.RunID)
 		if err != nil {
@@ -258,7 +264,7 @@ func (r *RunManager) Run(ctx context.Context) error {
 				}
 			}
 
-			run, err = r.Client.SubmitToolOutputs(ctx, r.TheradID, r.RunID, openai.SubmitToolOutputsRequest{
+			_, _ = r.Client.SubmitToolOutputs(ctx, r.TheradID, r.RunID, openai.SubmitToolOutputsRequest{
 				ToolOutputs: toolOutputs,
 			})
 		case openai.RunStatusCompleted:
@@ -270,7 +276,7 @@ func (r *RunManager) Run(ctx context.Context) error {
 		case openai.RunStatusCancelling:
 			return fmt.Errorf("run cancelling")
 		}
-		time.Sleep(time.Millisecond * 200)
+		time.Sleep(defaultTimeout)
 	}
 }
 
@@ -280,6 +286,7 @@ func AddNeed(ctx context.Context, pool *sql.DB, need string) error {
 	if err != nil {
 		return fmt.Errorf("create need: %w", err)
 	}
+
 	return nil
 }
 
@@ -291,6 +298,7 @@ func parseNeedsArgs(arg string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("unmarshal needs: %w", err)
 	}
+
 	return need.Name, nil
 }
 
