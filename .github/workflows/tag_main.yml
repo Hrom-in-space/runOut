@@ -22,7 +22,7 @@ jobs:
           GOOS=linux GOARCH=amd64 go build -o runout-linux-amd64
           GOOS=darwin GOARCH=arm64 go build -o runout-darwin-arm64
       - name: create-archive
-        run: tar -czf migrations.tar.gz -C ./internal/db/migrations .
+        run: tar -czf migrations.tar.gz -C ./migrations .
       - name: Release
         uses: softprops/action-gh-release@v2
         with:

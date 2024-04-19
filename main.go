@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"embed"
 	"encoding/json"
 	"fmt"
@@ -18,15 +17,15 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
 	"github.com/sashabaranov/go-openai"
 
 	"runout/internal/config"
-	"runout/internal/db"
 	"runout/internal/utils"
 )
 
-// TODO: add Assistant worker
 // TODO: split to handlers/services/repositories
 // TODO: add tests
 // TODO: fix all slog messages
@@ -35,7 +34,11 @@ import (
 //go:embed front/*
 var static embed.FS
 
-//nolint:funlen,cyclop
+type DB interface {
+	Begin(ctx context.Context) (pgx.Tx, error)
+}
+
+//nolint:funlen
 func main() {
 	cfg, err := config.New()
 	if err != nil {
@@ -50,23 +53,22 @@ func main() {
 	const audioChanSize = 1000
 	audioChan := make(chan Audio, audioChanSize)
 
-	// Database
-	psqlInfo := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		cfg.PG.Host, cfg.PG.Port, cfg.PG.Username, cfg.PG.Password, cfg.PG.Database)
-	dbPool, err := sql.Open("postgres", psqlInfo)
+	connStr := fmt.Sprintf(
+		"postgres://%s:%s@%s/%s?sslmode=disable",
+		cfg.PG.Username, cfg.PG.Password, net.JoinHostPort(cfg.PG.Host, cfg.PG.Port), cfg.PG.Database,
+	)
+	dbPool, err := pgxpool.New(ctx, connStr)
 	if err != nil {
-		slog.Error("dbPool open", err)
+		log.Printf("Unable to create connection pool: %v", err)
+		os.Exit(1)
 	}
-	defer func() {
-		if err := dbPool.Close(); err != nil {
-			slog.Error("dbPool close", err)
-		}
-	}()
-	err = dbPool.Ping()
+
+	err = dbPool.Ping(ctx)
 	if err != nil {
-		slog.Error("no dbPool connection: ", err)
+		log.Printf("Error database connection: %v", err)
 	}
+
+	defer dbPool.Close()
 
 	// OpenAI client
 	oaiClient := openai.NewClient(cfg.OpenAI.APIKey)
@@ -109,7 +111,7 @@ func main() {
 				TheradID: runResponse.ThreadID,
 				RunID:    runResponse.ID,
 				Client:   oaiClient,
-				Pool:     dbPool,
+				DB:       dbPool,
 			}
 			err = runMngr.Run(ctx)
 			if err != nil {
@@ -190,15 +192,21 @@ func addNeed(audioCh chan<- Audio) http.HandlerFunc {
 	}
 }
 
-func listNeeds(pool *sql.DB) http.HandlerFunc {
+func listNeeds(pool DB) http.HandlerFunc {
 	return func(respWriter http.ResponseWriter, req *http.Request) {
-		q := db.New(pool)
-		needs, err := q.ListNeeds(req.Context())
+		const query = "SELECT name FROM needs ORDER BY name"
+		trx, err := pool.Begin(req.Context())
 		if err != nil {
-			slog.Error("ListNeeds", err)
+			slog.Error("Begin", err)
 			respWriter.WriteHeader(http.StatusInternalServerError)
 
 			return
+		}
+		rows, _ := trx.Query(req.Context(), query)
+		needs, err := pgx.CollectRows(rows, pgx.RowTo[string])
+		if err != nil {
+			slog.Error("ListNeeds", err)
+			respWriter.WriteHeader(http.StatusInternalServerError)
 		}
 
 		respWriter.Header().Set("Content-Type", "application/json")
@@ -219,7 +227,7 @@ type RunManager struct {
 	TheradID string
 	RunID    string
 	Client   *openai.Client
-	Pool     *sql.DB
+	DB       DB
 }
 
 //nolint:cyclop
@@ -248,10 +256,11 @@ func (r *RunManager) Run(ctx context.Context) error {
 					if err != nil {
 						return fmt.Errorf("parse needs args: %w", err)
 					}
-					err = AddNeed(ctx, r.Pool, need)
+					err = AddNeed(ctx, r.DB, need)
 					if err != nil {
-						return fmt.Errorf("add need: %w", err)
+						return fmt.Errorf("add need in DB: %w", err)
 					}
+					slog.Info("Need added", slog.String("name", need))
 					successIDs = append(successIDs, call.ID)
 				}
 			}
@@ -280,12 +289,19 @@ func (r *RunManager) Run(ctx context.Context) error {
 	}
 }
 
-func AddNeed(ctx context.Context, pool *sql.DB, need string) error {
-	q := db.New(pool)
-	err := q.CreateNeed(ctx, need)
+func AddNeed(ctx context.Context, pool DB, need string) error {
+	const query = "INSERT INTO needs (name) VALUES ($1)"
+
+	trx, err := pool.Begin(ctx)
 	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	_, err = trx.Exec(ctx, query, need)
+	if err != nil {
+		_ = trx.Rollback(ctx)
 		return fmt.Errorf("create need: %w", err)
 	}
+	_ = trx.Commit(ctx)
 
 	return nil
 }

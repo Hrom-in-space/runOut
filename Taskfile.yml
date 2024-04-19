@@ -25,11 +25,7 @@ tasks:
 
   migration:
     cmds:
-      - migrate -database postgres://app:app@localhost:5432/app?sslmode=disable -path ./internal/db/migrations/ {{.CLI_ARGS}}
-
-  gen.sqlc:
-    cmds:
-      - sqlc generate
+      - migrate -database postgres://app:app@localhost:5432/app?sslmode=disable -path ./migrations/ {{.CLI_ARGS}}
 
   ngrok.start:
     cmds:
