@@ -40,17 +40,17 @@ jobs:
           script: |
             cd /app
             # останавливаем сервис
-            sudo systemctl stop runout.service
+            sudo systemctl stop runout.service && echo "service stopped"
             # Обновляем приложение
-            rm -rf runout
-            curl -L -o runout https://github.com/Hrom-in-space/runOut/releases/download/${{ github.ref_name }}/runout-linux-amd64
-            chmod +x runout
+            rm -rf runout && echo "old runout removed"
+            curl -L -o runout https://github.com/Hrom-in-space/runOut/releases/download/${{ github.ref_name }}/runout-linux-amd64 && echo "new runout downloaded"
+            chmod +x runout && echo "runout is executable"
             # Накатываем миграции
-            rm -rf migrations
-            mkdir -p migrations
-            curl -L -o migrations.tar.gz https://github.com/Hrom-in-space/runOut/releases/download/${{ github.ref_name }}/migrations.tar.gz
-            tar -xzvf migrations.tar.gz -C migrations
-            rm -rf migrations.tar.gz
-            migrate -database postgres://app:app@localhost:5432/app?sslmode=disable -path ./migrations/ up
+            rm -rf migrations && echo "old migrations removed"
+            mkdir -p migrations && echo "new migrations dir created"
+            curl -L -o migrations.tar.gz https://github.com/Hrom-in-space/runOut/releases/download/${{ github.ref_name }}/migrations.tar.gz && echo "new migrations downloaded"
+            tar -xzvf migrations.tar.gz -C migrations && echo "migrations extracted"
+            rm -rf migrations.tar.gz && echo "migrations archive removed"
+            migrate -database postgres://app:app@localhost:5432/app?sslmode=disable -path ./migrations/ up && echo "migrations applied"
             # Запускаем сервис
-            sudo systemctl start runout.service
+            sudo systemctl start runout.service && echo "service started"
