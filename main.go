@@ -24,6 +24,7 @@ import (
 
 	"runout/internal/config"
 	"runout/internal/utils"
+	"runout/pkg/httpserver"
 )
 
 // TODO: split to handlers/services/repositories
@@ -62,12 +63,10 @@ func main() {
 		log.Printf("Unable to create connection pool: %v", err)
 		os.Exit(1)
 	}
-
 	err = dbPool.Ping(ctx)
 	if err != nil {
 		log.Printf("Error database connection: %v", err)
 	}
-
 	defer dbPool.Close()
 
 	// OpenAI client
@@ -134,14 +133,8 @@ func main() {
 	router.PathPrefix("/").Handler(http.StripPrefix("/", http.FileServerFS(static)))
 	// TODO: graceful shutdown
 	slog.Info("Server is running on http://localhost:" + cfg.Port)
-	httpServer := http.Server{
-		ReadHeaderTimeout: 5 * time.Second, //nolint:gomnd
-		Addr:              ":" + cfg.Port,
-		Handler:           router,
-		BaseContext: func(_ net.Listener) context.Context {
-			return ctx
-		},
-	}
+
+	httpServer := httpserver.New(ctx, router, cfg.Port)
 	err = httpServer.ListenAndServe()
 	if err != nil {
 		slog.Error("ListenAndServe: ", err)
