@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
 	"log/slog"
 	"net"
 	"net/http"
@@ -25,6 +24,7 @@ import (
 	"runout/internal/config"
 	"runout/internal/utils"
 	"runout/pkg/httpserver"
+	"runout/pkg/logger"
 )
 
 // TODO: split to handlers/services/repositories
@@ -41,18 +41,18 @@ type DB interface {
 
 //nolint:funlen
 func main() {
+	ctx := context.Background()
+
 	cfg, err := config.New()
 	if err != nil {
-		slog.Error("config.New", err)
-		os.Exit(1)
+		panic(err)
 	}
 
-	ctx := context.Background()
-	log.SetFlags(log.Ltime | log.Lshortfile)
-	// TODO: add config
-
-	const audioChanSize = 1000
-	audioChan := make(chan Audio, audioChanSize)
+	log, err := logger.New("INFO", cfg.Logger.Format)
+	if err != nil {
+		panic(err)
+	}
+	ctx = logger.ToCtx(ctx, log)
 
 	connStr := fmt.Sprintf(
 		"postgres://%s:%s@%s/%s?sslmode=disable",
@@ -60,21 +60,23 @@ func main() {
 	)
 	dbPool, err := pgxpool.New(ctx, connStr)
 	if err != nil {
-		log.Printf("Unable to create connection pool: %v", err)
+		log.Error("Unable to create connection pool", logger.Error(err))
 		os.Exit(1)
 	}
 	err = dbPool.Ping(ctx)
 	if err != nil {
-		log.Printf("Error database connection: %v", err)
+		log.Error("Error database connection", logger.Error(err))
 	}
 	defer dbPool.Close()
 
 	// OpenAI client
 	oaiClient := openai.NewClient(cfg.OpenAI.APIKey)
 
+	const audioChanSize = 1000
+	audioChan := make(chan Audio, audioChanSize)
 	go func() {
 		for audio := range audioChan {
-			slog.Info("Audio received", slog.String("format", audio.Format))
+			log.Info("Audio received", slog.String("format", audio.Format))
 			request := openai.AudioRequest{
 				Model:    "whisper-1",
 				Reader:   bytes.NewReader(audio.Data),
@@ -82,10 +84,10 @@ func main() {
 			}
 			resp, err := oaiClient.CreateTranscription(ctx, request)
 			if err != nil {
-				slog.Error("CreateTranscription", err)
+				log.Error("CreateTranscription", logger.Error(err))
 				continue
 			}
-			slog.Info("Transcription created", slog.String("text", resp.Text))
+			log.Info("Transcription created", slog.String("text", resp.Text))
 
 			createThreadAndRunRequest := openai.CreateThreadAndRunRequest{
 				RunRequest: openai.RunRequest{
@@ -102,7 +104,7 @@ func main() {
 			}
 			runResponse, err := oaiClient.CreateThreadAndRun(ctx, createThreadAndRunRequest)
 			if err != nil {
-				slog.Error("CreateThreadAndRun", err)
+				log.Error("CreateThreadAndRun", logger.Error(err))
 				continue
 			}
 
@@ -114,10 +116,10 @@ func main() {
 			}
 			err = runMngr.Run(ctx)
 			if err != nil {
-				slog.Error("RunManager.Run", err)
+				log.Error("RunManager.Run", logger.Error(err))
 				continue
 			}
-			slog.Info("Run completed", slog.String("run_id", runResponse.ID))
+			log.Info("Run completed", slog.String("run_id", runResponse.ID))
 		}
 	}()
 
@@ -127,22 +129,23 @@ func main() {
 
 	static, err := fs.Sub(static, "front")
 	if err != nil {
-		slog.Error("Sub", err)
+		log.Error("Sub", logger.Error(err))
 		os.Exit(1) //nolint:gocritic
 	}
 	router.PathPrefix("/").Handler(http.StripPrefix("/", http.FileServerFS(static)))
 	// TODO: graceful shutdown
-	slog.Info("Server is running on http://localhost:" + cfg.Port)
+	log.Info("Server is running on http://localhost:" + cfg.Port)
 
 	httpServer := httpserver.New(ctx, router, cfg.Port)
 	err = httpServer.ListenAndServe()
 	if err != nil {
-		slog.Error("ListenAndServe: ", err)
+		log.Error("ListenAndServe", logger.Error(err))
 	}
 }
 
 func addNeed(audioCh chan<- Audio) http.HandlerFunc {
 	return func(writer http.ResponseWriter, req *http.Request) {
+		log := logger.FromCtx(req.Context())
 		// enableCors(&w)
 		// TODO: security check real file type https://github.com/h2non/filetype
 		audioFormats := []string{
@@ -160,7 +163,7 @@ func addNeed(audioCh chan<- Audio) http.HandlerFunc {
 		contentType := req.Header.Get("Content-Type")
 		format := strings.Replace(contentType, "audio/", "", 1)
 		if !utils.InSlice(audioFormats, format) {
-			slog.Error("wrong Content-Type", slog.String("content-type", contentType))
+			log.Error("wrong Content-Type", slog.String("content-type", contentType))
 			writer.WriteHeader(http.StatusBadRequest)
 			// TODO: return information about error
 			return
@@ -168,7 +171,7 @@ func addNeed(audioCh chan<- Audio) http.HandlerFunc {
 
 		data, err := io.ReadAll(req.Body)
 		if err != nil {
-			slog.Error("ReadAll", err)
+			log.Error("ReadAll", logger.Error(err))
 			writer.WriteHeader(http.StatusInternalServerError)
 
 			return
@@ -179,7 +182,7 @@ func addNeed(audioCh chan<- Audio) http.HandlerFunc {
 			Data:   data,
 			Format: format,
 		}
-		slog.Info("Audio added", slog.String("format", format))
+		log.Info("Audio added", slog.String("format", format))
 
 		writer.WriteHeader(http.StatusOK)
 	}
@@ -187,10 +190,11 @@ func addNeed(audioCh chan<- Audio) http.HandlerFunc {
 
 func listNeeds(pool DB) http.HandlerFunc {
 	return func(respWriter http.ResponseWriter, req *http.Request) {
+		log := logger.FromCtx(req.Context())
 		const query = "SELECT name FROM needs ORDER BY name"
 		trx, err := pool.Begin(req.Context())
 		if err != nil {
-			slog.Error("Begin", err)
+			log.Error("Begin", logger.Error(err))
 			respWriter.WriteHeader(http.StatusInternalServerError)
 
 			return
@@ -198,14 +202,14 @@ func listNeeds(pool DB) http.HandlerFunc {
 		rows, _ := trx.Query(req.Context(), query)
 		needs, err := pgx.CollectRows(rows, pgx.RowTo[string])
 		if err != nil {
-			slog.Error("ListNeeds", err)
+			log.Error("ListNeeds", logger.Error(err))
 			respWriter.WriteHeader(http.StatusInternalServerError)
 		}
 
 		respWriter.Header().Set("Content-Type", "application/json")
 		err = json.NewEncoder(respWriter).Encode(needs)
 		if err != nil {
-			slog.Error("Encode needs", err)
+			log.Error("Encode needs", logger.Error(err))
 			respWriter.WriteHeader(http.StatusInternalServerError)
 		}
 	}
@@ -225,13 +229,14 @@ type RunManager struct {
 
 //nolint:cyclop
 func (r *RunManager) Run(ctx context.Context) error {
+	log := logger.FromCtx(ctx)
 	const defaultTimeout = time.Millisecond * 200
 	for {
 		run, err := r.Client.RetrieveRun(ctx, r.TheradID, r.RunID)
 		if err != nil {
 			return fmt.Errorf("retrieve run: %w", err)
 		}
-		slog.Info("Run status", slog.String("status", string(run.Status)))
+		log.Info("Run status", slog.String("status", string(run.Status)))
 
 		switch run.Status {
 		case openai.RunStatusQueued, openai.RunStatusInProgress:
@@ -242,7 +247,7 @@ func (r *RunManager) Run(ctx context.Context) error {
 			for _, call := range run.RequiredAction.SubmitToolOutputs.ToolCalls {
 				if call.Function.Name == "addNeed" {
 					need, err := parseNeedsArgs(call.Function.Arguments)
-					slog.Info(
+					log.Info(
 						"raw args",
 						slog.String("example", fmt.Sprintf("|%v|", "abc")),
 						slog.String("raw args", fmt.Sprintf("|%v|", call.Function.Arguments)))
@@ -253,7 +258,7 @@ func (r *RunManager) Run(ctx context.Context) error {
 					if err != nil {
 						return fmt.Errorf("add need in DB: %w", err)
 					}
-					slog.Info("Need added", slog.String("name", need))
+					log.Info("Need added", slog.String("name", need))
 					successIDs = append(successIDs, call.ID)
 				}
 			}

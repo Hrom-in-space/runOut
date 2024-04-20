@@ -8,6 +8,7 @@ import (
 type Config struct {
 	// Порт приложения
 	Port   string   `env:"PORT" envDefault:"8000"`
+	Logger Logger   `envPrefix:"LOGGER_"`
 	PG     Postgres `envPrefix:"PG_"`
 	OpenAI OpenAPI  `envPrefix:"OPENAI_"`
 }
@@ -30,6 +31,11 @@ type Postgres struct {
 	Port string `envDefault:"5432"`
 	// Имя БД
 	Database string `env:"DB" envDefault:"app"`
+}
+
+type Logger struct {
+	// формат логов (text, json, color)
+	Format string `env:"FORMAT" envDefault:"text"`
 }
 
 func New() (*Config, error) {

@@ -8,6 +8,10 @@ tasks:
     cmds:
       - golangci-lint run ./...
 
+  gen:
+    cmds:
+      - go generate ./...
+
   run:
     cmds:
       - go run main.go
