@@ -39,7 +39,7 @@ type DB interface {
 	Begin(ctx context.Context) (pgx.Tx, error)
 }
 
-//nolint:funlen
+//nolint:funlen,cyclop
 func main() {
 	ctx := context.Background()
 

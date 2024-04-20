@@ -42,3 +42,4 @@ linters-settings:
     allow:
       - error
       - stdlib
+      - github.com/jackc/pgx/v5.Tx
