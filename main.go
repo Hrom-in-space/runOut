@@ -6,13 +6,11 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/fs"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -22,8 +20,9 @@ import (
 	"github.com/sashabaranov/go-openai"
 
 	"runout/internal/config"
+	"runout/internal/domain"
+	"runout/internal/handlers"
 	"runout/internal/repo"
-	"runout/internal/utils"
 	"runout/pkg/httpserver"
 	"runout/pkg/logger"
 	"runout/pkg/pg"
@@ -78,7 +77,7 @@ func main() {
 	oaiClient := openai.NewClient(cfg.OpenAI.APIKey)
 
 	const audioChanSize = 1000
-	audioChan := make(chan Audio, audioChanSize)
+	audioChan := make(chan domain.Audio, audioChanSize)
 	go func() {
 		for audio := range audioChan {
 			log.Info("Audio received", slog.String("format", audio.Format))
@@ -114,7 +113,7 @@ func main() {
 			}
 
 			runMngr := RunManager{
-				TheradID: runResponse.ThreadID,
+				ThreadID: runResponse.ThreadID,
 				RunID:    runResponse.ID,
 				Client:   oaiClient,
 				Trm:      trManager,
@@ -130,8 +129,8 @@ func main() {
 	}()
 
 	router := mux.NewRouter()
-	router.Path("/needs").Methods(http.MethodPost).Handler(addNeed(audioChan))
-	router.Path("/needs").Methods(http.MethodGet).Handler(listNeeds(trManager, repo))
+	router.Path("/needs").Methods(http.MethodPost).Handler(handlers.AddNeed(audioChan))
+	router.Path("/needs").Methods(http.MethodGet).Handler(handlers.ListNeeds(trManager, repo))
 
 	static, err := fs.Sub(static, "front")
 	if err != nil {
@@ -149,90 +148,8 @@ func main() {
 	}
 }
 
-func addNeed(audioCh chan<- Audio) http.HandlerFunc {
-	return func(writer http.ResponseWriter, req *http.Request) {
-		log := logger.FromCtx(req.Context())
-		// enableCors(&w)
-		// TODO: security check real file type https://github.com/h2non/filetype
-		audioFormats := []string{
-			"flac",
-			"mp3",
-			"mp4",
-			"mpeg",
-			"mpga",
-			"m4a",
-			"ogg",
-			"wav",
-			"webm",
-		}
-
-		contentType := req.Header.Get("Content-Type")
-		format := strings.Replace(contentType, "audio/", "", 1)
-		if !utils.InSlice(audioFormats, format) {
-			log.Error("wrong Content-Type", slog.String("content-type", contentType))
-			writer.WriteHeader(http.StatusBadRequest)
-			// TODO: return information about error
-			return
-		}
-
-		data, err := io.ReadAll(req.Body)
-		if err != nil {
-			log.Error("ReadAll", logger.Error(err))
-			writer.WriteHeader(http.StatusInternalServerError)
-
-			return
-		}
-		defer req.Body.Close()
-
-		audioCh <- Audio{
-			Data:   data,
-			Format: format,
-		}
-		log.Info("Audio added", slog.String("format", format))
-
-		writer.WriteHeader(http.StatusOK)
-	}
-}
-
-type NeedLister interface {
-	ListNeeds(ctx context.Context) ([]string, error)
-}
-
-func listNeeds(trm pg.Manager, repo NeedLister) http.HandlerFunc {
-	return func(respWriter http.ResponseWriter, req *http.Request) {
-		ctx := req.Context()
-		log := logger.FromCtx(ctx)
-
-		var err error
-		var needs []string
-		if err := trm.Do(ctx, func(ctx context.Context) error {
-			needs, err = repo.ListNeeds(ctx)
-			if err != nil {
-				return fmt.Errorf("error getting needs: %w", err)
-			}
-
-			return nil
-		}); err != nil {
-			log.Error("ListNeeds", logger.Error(err))
-			respWriter.WriteHeader(http.StatusInternalServerError)
-		}
-
-		respWriter.Header().Set("Content-Type", "application/json")
-		err = json.NewEncoder(respWriter).Encode(needs)
-		if err != nil {
-			log.Error("Encode needs", logger.Error(err))
-			respWriter.WriteHeader(http.StatusInternalServerError)
-		}
-	}
-}
-
-type Audio struct {
-	Format string
-	Data   []byte
-}
-
 type RunManager struct {
-	TheradID string
+	ThreadID string
 	RunID    string
 	Client   *openai.Client
 	Trm      pg.Manager
@@ -244,7 +161,7 @@ func (r *RunManager) Run(ctx context.Context) error {
 	log := logger.FromCtx(ctx)
 	const defaultTimeout = time.Millisecond * 200
 	for {
-		run, err := r.Client.RetrieveRun(ctx, r.TheradID, r.RunID)
+		run, err := r.Client.RetrieveRun(ctx, r.ThreadID, r.RunID)
 		if err != nil {
 			return fmt.Errorf("retrieve run: %w", err)
 		}
@@ -283,7 +200,7 @@ func (r *RunManager) Run(ctx context.Context) error {
 				}
 			}
 
-			_, _ = r.Client.SubmitToolOutputs(ctx, r.TheradID, r.RunID, openai.SubmitToolOutputsRequest{
+			_, _ = r.Client.SubmitToolOutputs(ctx, r.ThreadID, r.RunID, openai.SubmitToolOutputsRequest{
 				ToolOutputs: toolOutputs,
 			})
 		case openai.RunStatusCompleted:
