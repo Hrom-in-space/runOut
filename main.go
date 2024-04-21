@@ -22,9 +22,11 @@ import (
 	"github.com/sashabaranov/go-openai"
 
 	"runout/internal/config"
+	"runout/internal/repo"
 	"runout/internal/utils"
 	"runout/pkg/httpserver"
 	"runout/pkg/logger"
+	"runout/pkg/pg"
 )
 
 // TODO: split to handlers/services/repositories
@@ -69,6 +71,9 @@ func main() {
 	}
 	defer dbPool.Close()
 
+	trManager := pg.NewTxManager(dbPool)
+	repo := repo.New()
+
 	// OpenAI client
 	oaiClient := openai.NewClient(cfg.OpenAI.APIKey)
 
@@ -112,7 +117,8 @@ func main() {
 				TheradID: runResponse.ThreadID,
 				RunID:    runResponse.ID,
 				Client:   oaiClient,
-				DB:       dbPool,
+				Trm:      trManager,
+				Repo:     repo,
 			}
 			err = runMngr.Run(ctx)
 			if err != nil {
@@ -125,7 +131,7 @@ func main() {
 
 	router := mux.NewRouter()
 	router.Path("/needs").Methods(http.MethodPost).Handler(addNeed(audioChan))
-	router.Path("/needs").Methods(http.MethodGet).Handler(listNeeds(dbPool))
+	router.Path("/needs").Methods(http.MethodGet).Handler(listNeeds(trManager, repo))
 
 	static, err := fs.Sub(static, "front")
 	if err != nil {
@@ -188,20 +194,25 @@ func addNeed(audioCh chan<- Audio) http.HandlerFunc {
 	}
 }
 
-func listNeeds(pool DB) http.HandlerFunc {
-	return func(respWriter http.ResponseWriter, req *http.Request) {
-		log := logger.FromCtx(req.Context())
-		const query = "SELECT name FROM needs ORDER BY name"
-		trx, err := pool.Begin(req.Context())
-		if err != nil {
-			log.Error("Begin", logger.Error(err))
-			respWriter.WriteHeader(http.StatusInternalServerError)
+type NeedLister interface {
+	ListNeeds(ctx context.Context) ([]string, error)
+}
 
-			return
-		}
-		rows, _ := trx.Query(req.Context(), query)
-		needs, err := pgx.CollectRows(rows, pgx.RowTo[string])
-		if err != nil {
+func listNeeds(trm pg.Manager, repo NeedLister) http.HandlerFunc {
+	return func(respWriter http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+		log := logger.FromCtx(ctx)
+
+		var err error
+		var needs []string
+		if err := trm.Do(ctx, func(ctx context.Context) error {
+			needs, err = repo.ListNeeds(ctx)
+			if err != nil {
+				return fmt.Errorf("error getting needs: %w", err)
+			}
+
+			return nil
+		}); err != nil {
 			log.Error("ListNeeds", logger.Error(err))
 			respWriter.WriteHeader(http.StatusInternalServerError)
 		}
@@ -224,7 +235,8 @@ type RunManager struct {
 	TheradID string
 	RunID    string
 	Client   *openai.Client
-	DB       DB
+	Trm      pg.Manager
+	Repo     NeedAdder
 }
 
 //nolint:cyclop
@@ -254,7 +266,7 @@ func (r *RunManager) Run(ctx context.Context) error {
 					if err != nil {
 						return fmt.Errorf("parse needs args: %w", err)
 					}
-					err = AddNeed(ctx, r.DB, need)
+					err = AddNeed(ctx, r.Trm, r.Repo, need)
 					if err != nil {
 						return fmt.Errorf("add need in DB: %w", err)
 					}
@@ -287,19 +299,21 @@ func (r *RunManager) Run(ctx context.Context) error {
 	}
 }
 
-func AddNeed(ctx context.Context, pool DB, need string) error {
-	const query = "INSERT INTO needs (name) VALUES ($1)"
+type NeedAdder interface {
+	AddNeed(ctx context.Context, need string) error
+}
 
-	trx, err := pool.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("begin tx: %w", err)
+func AddNeed(ctx context.Context, trm pg.Manager, repo NeedAdder, need string) error {
+	if err := trm.Do(ctx, func(ctx context.Context) error {
+		err := repo.AddNeed(ctx, need)
+		if err != nil {
+			return fmt.Errorf("error add need: %w", err)
+		}
+
+		return nil
+	}); err != nil {
+		return err
 	}
-	_, err = trx.Exec(ctx, query, need)
-	if err != nil {
-		_ = trx.Rollback(ctx)
-		return fmt.Errorf("create need: %w", err)
-	}
-	_ = trx.Commit(ctx)
 
 	return nil
 }
