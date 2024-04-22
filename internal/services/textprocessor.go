@@ -9,24 +9,57 @@ import (
 
 	"github.com/sashabaranov/go-openai"
 
+	"runout/internal/repo"
 	"runout/pkg/logger"
 	"runout/pkg/pg"
 )
 
-type RunManager struct {
-	ThreadID string
-	RunID    string
-	Client   *openai.Client
-	Trm      pg.Manager
-	Repo     NeedAdder
+type AssistantManager struct {
+	oaiClient   *openai.Client
+	trm         *pg.TxManager
+	repo        *repo.Repo
+	assistantID string
 }
 
-//nolint:cyclop
-func (r *RunManager) Run(ctx context.Context) error {
+func NewAssistantManager(
+	oaiClient *openai.Client,
+	trm *pg.TxManager,
+	repo *repo.Repo,
+	assistantID string,
+) *AssistantManager {
+	return &AssistantManager{
+		oaiClient:   oaiClient,
+		trm:         trm,
+		repo:        repo,
+		assistantID: assistantID,
+	}
+}
+
+//nolint:cyclop,funlen
+func (m *AssistantManager) Run(ctx context.Context, text string) error {
 	log := logger.FromCtx(ctx)
-	const defaultTimeout = time.Millisecond * 200
+
+	createThreadAndRunRequest := openai.CreateThreadAndRunRequest{
+		RunRequest: openai.RunRequest{
+			AssistantID: m.assistantID,
+		},
+		Thread: openai.ThreadRequest{
+			Messages: []openai.ThreadMessage{
+				{
+					Role:    openai.ThreadMessageRoleUser,
+					Content: text,
+				},
+			},
+		},
+	}
+	runResponse, err := m.oaiClient.CreateThreadAndRun(ctx, createThreadAndRunRequest)
+	if err != nil {
+		return fmt.Errorf("create thread and run: %w", err)
+	}
+
+	const defaultTimeout = time.Millisecond * 300
 	for {
-		run, err := r.Client.RetrieveRun(ctx, r.ThreadID, r.RunID)
+		run, err := m.oaiClient.RetrieveRun(ctx, runResponse.ThreadID, runResponse.ID)
 		if err != nil {
 			return fmt.Errorf("retrieve run: %w", err)
 		}
@@ -48,7 +81,7 @@ func (r *RunManager) Run(ctx context.Context) error {
 					if err != nil {
 						return fmt.Errorf("parse needs args: %w", err)
 					}
-					err = AddNeed(ctx, r.Trm, r.Repo, need)
+					err = AddNeed(ctx, m.trm, m.repo, need)
 					if err != nil {
 						return fmt.Errorf("add need in DB: %w", err)
 					}
@@ -65,7 +98,7 @@ func (r *RunManager) Run(ctx context.Context) error {
 				}
 			}
 
-			_, _ = r.Client.SubmitToolOutputs(ctx, r.ThreadID, r.RunID, openai.SubmitToolOutputsRequest{
+			_, _ = m.oaiClient.SubmitToolOutputs(ctx, runResponse.ThreadID, runResponse.ID, openai.SubmitToolOutputsRequest{
 				ToolOutputs: toolOutputs,
 			})
 		case openai.RunStatusCompleted:

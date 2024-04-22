@@ -5,6 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -32,6 +33,7 @@ import (
 //go:embed front/*
 var static embed.FS
 
+//nolint:funlen,cyclop
 func main() {
 	ctx := context.Background()
 
@@ -64,13 +66,36 @@ func main() {
 	trManager := pg.NewTxManager(dbPool)
 	repo := repo.New()
 
-	// OpenAI client
 	oaiClient := openai.NewClient(cfg.OpenAI.APIKey)
+	voiceToTextService := services.NewVoiceToTextService(oaiClient)
+	assistanRunnerService := services.NewAssistantManager(oaiClient, trManager, repo, cfg.OpenAI.AssistantID)
 
 	const audioChanSize = 1000
 	audioChan := make(chan domain.Audio, audioChanSize)
+	const reqChanSize = 1000
+	reqChan := make(chan string, reqChanSize)
 
-	go services.AudioProcessor(ctx, audioChan, oaiClient, trManager, repo, cfg.OpenAI.AssistantID)
+	go func() {
+		for audio := range audioChan {
+			log.Info("Audio received", slog.String("format", audio.Format))
+			text, err := voiceToTextService.ProcessVoice(ctx, audio)
+			if err != nil {
+				log.Error("ProcessVoice", logger.Error(err))
+				continue
+			}
+			log.Info("Transcription created", slog.String("text", text))
+			reqChan <- text
+		}
+	}()
+
+	go func() {
+		for text := range reqChan {
+			err := assistanRunnerService.Run(ctx, text)
+			if err != nil {
+				log.Error("Run", logger.Error(err))
+			}
+		}
+	}()
 
 	router := mux.NewRouter()
 	router.Path("/needs").Methods(http.MethodPost).Handler(handlers.AddNeed(audioChan))
