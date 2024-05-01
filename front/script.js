@@ -7,7 +7,7 @@ let audioUrl;
 navigator.mediaDevices.getUserMedia({ audio: true })
     .then(stream => {
         // TODO: add audio/webm support
-        let options = { mimeType: 'audio/mp4' };
+        let options = { mimeType: window.firstSupportedMimeType };
         mediaRecorder = new MediaRecorder(stream, options);
 
         mediaRecorder.ondataavailable = event => {
@@ -16,7 +16,7 @@ navigator.mediaDevices.getUserMedia({ audio: true })
 
         // Установка обработчика onstop здесь, после инициализации mediaRecorder
         mediaRecorder.onstop = () => {
-            audioBlob = new Blob(audioChunks, { type: 'audio/mp4' });
+            audioBlob = new Blob(audioChunks, { type: window.firstSupportedMimeType });
             audioUrl = URL.createObjectURL(audioBlob);
             audioChunks = [];
             playAudio(audioUrl);
@@ -44,7 +44,7 @@ function startRecording() {
     if (mediaRecorder && mediaRecorder.state !== 'recording') {
         audioChunks = [];
         mediaRecorder.start(1000);
-        document.getElementById('startRecord').textContent = 'Идет запись';
+        document.getElementById('startRecord').textContent = 'STOP';
     }
 }
 
@@ -52,14 +52,14 @@ function stopRecording() {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
         mediaRecorder.stop();
     }
-    document.getElementById('startRecord').textContent = 'Записать';
+    document.getElementById('startRecord').textContent = 'REC';
 }
 
 function sendAudioBlob(audioBlob) {
     fetch('/needs', {
         method: 'POST',
         headers: {
-            'Content-Type': 'audio/mp4'
+            'Content-Type': window.firstSupportedMimeType
         },
         body: audioBlob
     })
@@ -76,3 +76,21 @@ function playAudio(audioUrl) {
     let audio = new Audio(audioUrl);
     audio.play();
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    function getAllSupportedMimeTypes(...mediaTypes) {
+        if (!mediaTypes.length) mediaTypes.push('audio');  // Задаем по умолчанию 'audio', если типы не указаны
+        const CONTAINERS = ['webm', 'ogg', 'mp3', 'mp4', 'mpeg', 'aac', '3gpp', '3gpp2', '3gp2', 'quicktime', 'flac', 'x-flac', 'wave', 'wav', 'x-wav', 'x-pn-wav', 'not-supported'];
+
+        return CONTAINERS.flatMap(ext =>
+            mediaTypes.map(mediaType => `${mediaType}/${ext}`)
+        ).filter(variation => MediaRecorder.isTypeSupported(variation));  // Проверяем поддержку типов через MediaRecorder.isTypeSupported
+    }
+
+    const supportedMimeTypes = getAllSupportedMimeTypes('audio');  // Получаем поддерживаемые MIME-типы
+    console.log('Поддерживаемые MIME-типы для записи аудио без указания кодеков:', supportedMimeTypes);
+
+    // Устанавливаем глобальную переменную
+    window.firstSupportedMimeType = supportedMimeTypes.length > 0 ? supportedMimeTypes[0] : null;
+    console.log('Первый поддерживаемый MIME-тип:', window.firstSupportedMimeType);
+});
