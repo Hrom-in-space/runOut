@@ -93,6 +93,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Устанавливаем глобальную переменную
     window.firstSupportedMimeType = supportedMimeTypes.length > 0 ? supportedMimeTypes[0] : null;
     console.log('Первый поддерживаемый MIME-тип:', window.firstSupportedMimeType);
+
+    document.getElementById('listNeeds').click();
 });
 
 function addStringsToList(strings) {
