@@ -100,6 +100,7 @@ func main() {
 	router := mux.NewRouter()
 	router.Path("/needs").Methods(http.MethodPost).Handler(handlers.AddNeed(audioChan))
 	router.Path("/needs").Methods(http.MethodGet).Handler(handlers.ListNeeds(trManager, repo))
+	router.Path("/needs").Methods(http.MethodDelete).Handler(handlers.ClearNeeds(trManager, repo))
 
 	static, err := fs.Sub(static, "front")
 	if err != nil {

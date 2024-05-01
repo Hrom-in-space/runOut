@@ -91,3 +91,29 @@ func ListNeeds(trm pg.Manager, repo NeedLister) http.HandlerFunc {
 		}
 	}
 }
+
+type NeedsCleaner interface {
+	ClearNeeds(ctx context.Context) error
+}
+
+func ClearNeeds(trm pg.Manager, repo NeedsCleaner) http.HandlerFunc {
+	return func(respWriter http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+		log := logger.FromCtx(ctx)
+
+		var err error
+		if err := trm.Do(ctx, func(ctx context.Context) error {
+			err = repo.ClearNeeds(ctx)
+			if err != nil {
+				return fmt.Errorf("error getting needs: %w", err)
+			}
+
+			return nil
+		}); err != nil {
+			log.Error("ClearNeeds", logger.Error(err))
+			respWriter.WriteHeader(http.StatusInternalServerError)
+		}
+
+		respWriter.WriteHeader(http.StatusOK)
+	}
+}

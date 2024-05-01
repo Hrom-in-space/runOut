@@ -38,3 +38,13 @@ func (n *Repo) AddNeed(ctx context.Context, need string) error {
 
 	return nil
 }
+
+func (n *Repo) ClearNeeds(ctx context.Context) error {
+	const query = "DELETE FROM needs"
+	_, err := pg.MustTxFromCtx(ctx).Exec(ctx, query)
+	if err != nil {
+		return fmt.Errorf("error adding need: %w", err)
+	}
+
+	return nil
+}

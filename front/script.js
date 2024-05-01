@@ -94,3 +94,80 @@ document.addEventListener('DOMContentLoaded', function() {
     window.firstSupportedMimeType = supportedMimeTypes.length > 0 ? supportedMimeTypes[0] : null;
     console.log('Первый поддерживаемый MIME-тип:', window.firstSupportedMimeType);
 });
+
+function addStringsToList(strings) {
+    // Get the list container
+    const listContainer = document.getElementById('listContainer');
+
+    // Clear the existing content
+    listContainer.innerHTML = '';
+
+    // Create a new unordered list
+    const ul = document.createElement('ul');
+
+    // For each string in the array, create a list item and append it to the unordered list
+    strings.forEach(str => {
+        const li = document.createElement('li');
+        li.textContent = str;
+        ul.appendChild(li);
+    });
+
+    // Append the unordered list to the list container
+    listContainer.appendChild(ul);
+}
+
+async function downloadListFromUrl(url) {
+    try {
+        // Fetch the data from the URL
+        const response = await fetch(url);
+
+        // Check if the response is ok
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        // Parse the response as JSON
+        const data = await response.json();
+
+        // Return the data
+        return data;
+    } catch (error) {
+        console.error('There was an error with the fetch operation: ', error);
+    }
+}
+
+function deleteResource(url) {
+    fetch(url, {
+        method: 'DELETE',
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.text();
+        })
+        .then(data => console.log(data))
+        .catch(error => console.error('There was an error with the fetch operation: ', error));
+}
+
+document.getElementById('listNeeds').addEventListener('click', async function() {
+    // Define the URL from which the list will be downloaded
+    const url = '/needs'; // Replace with your actual URL
+
+    // Download the list from the URL
+    const list = await downloadListFromUrl(url);
+
+    // Add the list to the listContainer
+    addStringsToList(list);
+});
+
+document.getElementById('clearNeeds').addEventListener('click', async function() {
+    // Define the URL from which the list will be downloaded
+    const url = '/needs'; // Replace with your actual URL
+
+    // Download the list from the URL
+    deleteResource(url);
+
+    // Add the list to the listContainer
+    addStringsToList([]);
+});

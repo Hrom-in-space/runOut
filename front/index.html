@@ -20,13 +20,15 @@
             box-sizing: border-box;
         }
 
-        .bottom-nav a {
+        .actions {
+            margin-top: 20px;
             padding: 10px 15px;
             text-decoration: none;
             color: white;
             display: inline-block;
             flex-grow: 1;
             background-color: transparent;
+            border: none; /* Add this line to remove borders */
         }
 
         .startRecord {
@@ -70,10 +72,11 @@
     </style>
 </head>
     <body>
+        <div id="listContainer"></div>
         <div class="bottom-nav">
-            <a href="#home">Главная</a>
+            <button id="listNeeds" class="actions" >List</button>
             <button id="startRecord" class="startRecord">REC</button>
-            <a href="#about">О нас</a>
+            <button id="clearNeeds" class="actions" >Clear</button>
         </div>
 
         <script src="./script.js"></script>
