@@ -80,7 +80,7 @@ function playAudio(audioUrl) {
 document.addEventListener('DOMContentLoaded', function() {
     function getAllSupportedMimeTypes(...mediaTypes) {
         if (!mediaTypes.length) mediaTypes.push('audio');  // Задаем по умолчанию 'audio', если типы не указаны
-        const CONTAINERS = ['webm', 'ogg', 'mp3', 'mp4', 'mpeg', 'aac', '3gpp', '3gpp2', '3gp2', 'quicktime', 'flac', 'x-flac', 'wave', 'wav', 'x-wav', 'x-pn-wav', 'not-supported'];
+        const CONTAINERS = ['webm', 'ogg', 'mp3', 'mp4', 'mpeg', 'flac', 'wav', 'm4a', 'not-supported'];
 
         return CONTAINERS.flatMap(ext =>
             mediaTypes.map(mediaType => `${mediaType}/${ext}`)
