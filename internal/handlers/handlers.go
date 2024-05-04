@@ -134,14 +134,14 @@ func DeleteOne(trm pg.Manager, repo NeedDeleter) http.HandlerFunc {
 			respWriter.WriteHeader(http.StatusNotFound)
 			return
 		}
-		id, err := strconv.Atoi(rawID)
+		needID, err := strconv.Atoi(rawID)
 		if err != nil {
 			respWriter.WriteHeader(http.StatusNotFound)
 			return
 		}
 
 		if err := trm.Do(ctx, func(ctx context.Context) error {
-			err = repo.DeleteOne(ctx, id)
+			err = repo.DeleteOne(ctx, needID)
 			if err != nil {
 				return fmt.Errorf("error getting needs: %w", err)
 			}
