@@ -11,6 +11,7 @@ require github.com/sashabaranov/go-openai v1.17.8-0.20231115162518-18465723f7d9
 
 require (
 	github.com/caarlos0/env/v10 v10.0.0
+	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.5.5
 	github.com/lmittmann/tint v1.0.4
 	github.com/stretchr/testify v1.8.1

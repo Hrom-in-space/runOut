@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
@@ -80,7 +81,23 @@ func main() {
 			log.Info("Audio received", slog.String("format", audio.Format))
 			text, err := voiceToTextService.ProcessVoice(ctx, audio)
 			if err != nil {
-				log.Error("ProcessVoice", logger.Error(err))
+				audioID, err := uuid.NewV7()
+				if err != nil {
+					log.Error("NewV7", logger.Error(err))
+					continue
+				}
+				log.Error(fmt.Sprintf("ProcessVoice: %v", audioID), logger.Error(err))
+
+				//nolint:gofumpt,gomnd
+				err = os.WriteFile(
+					fmt.Sprintf("%v.%v", audioID, audio.Format),
+					audio.Data,
+					0600,
+				)
+				if err != nil {
+					log.Error("WriteFile", logger.Error(err))
+				}
+
 				continue
 			}
 			log.Info("Transcription created", slog.String("text", text))
