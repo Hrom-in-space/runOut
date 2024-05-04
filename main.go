@@ -81,23 +81,11 @@ func main() {
 			log.Info("Audio received", slog.String("format", audio.Format))
 			text, err := voiceToTextService.ProcessVoice(ctx, audio)
 			if err != nil {
-				audioID, err := uuid.NewV7()
+				log.Error(fmt.Sprintf("ProcessVoice"), logger.Error(err))
+				err := saveAudio(audio.Data, audio.Format)
 				if err != nil {
-					log.Error("NewV7", logger.Error(err))
-					continue
+					log.Error("saveAudio", logger.Error(err))
 				}
-				log.Error(fmt.Sprintf("ProcessVoice: %v", audioID), logger.Error(err))
-
-				//nolint:gofumpt,gomnd
-				err = os.WriteFile(
-					fmt.Sprintf("%v.%v", audioID, audio.Format),
-					audio.Data,
-					0600,
-				)
-				if err != nil {
-					log.Error("WriteFile", logger.Error(err))
-				}
-
 				continue
 			}
 			log.Info("Transcription created", slog.String("text", text))
@@ -134,4 +122,23 @@ func main() {
 	if err != nil {
 		log.Error("ListenAndServe", logger.Error(err))
 	}
+}
+
+func saveAudio(data []byte, format string) error {
+	audioID, err := uuid.NewV7()
+	if err != nil {
+		return fmt.Errorf("NewV7: %w", err)
+	}
+
+	//nolint:gofumpt,gomnd,gosec
+	err = os.WriteFile(
+		fmt.Sprintf("./migrations/%v.%v", audioID, format),
+		data,
+		0660,
+	)
+	if err != nil {
+		return fmt.Errorf("WriteFile: %w", err)
+	}
+
+	return nil
 }

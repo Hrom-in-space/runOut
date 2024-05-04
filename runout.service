@@ -6,6 +6,7 @@ After=network.target
 User=app
 Group=app
 EnvironmentFile=/app/env
+WorkingDirectory=/app
 ExecStart=/app/runout
 
 [Install]
