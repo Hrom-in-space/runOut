@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('listNeeds').click();
 });
 
-function addStringsToList(strings) {
+function addStringsToList(needs) {
     // Get the list container
     const listContainer = document.getElementById('listContainer');
 
@@ -108,9 +108,19 @@ function addStringsToList(strings) {
     const ul = document.createElement('ul');
 
     // For each string in the array, create a list item and append it to the unordered list
-    strings.forEach(str => {
+    needs.forEach(need => {
         const li = document.createElement('li');
-        li.textContent = str;
+        li.textContent = need["name"];
+
+        // Create a new button
+        const button = document.createElement('button');
+        button.textContent = 'Send';
+        button.className = 'send-button';
+        button.dataset.id = need["id"];
+
+        // Append the button to the list item
+        li.appendChild(button);
+
         ul.appendChild(li);
     });
 
@@ -118,10 +128,10 @@ function addStringsToList(strings) {
     listContainer.appendChild(ul);
 }
 
-async function downloadListFromUrl(url) {
+async function allNeeds() {
     try {
         // Fetch the data from the URL
-        const response = await fetch(url);
+        const response = await fetch("/needs");
 
         // Check if the response is ok
         if (!response.ok) {
@@ -138,8 +148,8 @@ async function downloadListFromUrl(url) {
     }
 }
 
-function deleteResource(url) {
-    fetch(url, {
+function clearNeeds() {
+    fetch("/needs", {
         method: 'DELETE',
     })
         .then(response => {
@@ -153,23 +163,11 @@ function deleteResource(url) {
 }
 
 document.getElementById('listNeeds').addEventListener('click', async function() {
-    // Define the URL from which the list will be downloaded
-    const url = '/needs'; // Replace with your actual URL
-
-    // Download the list from the URL
-    const list = await downloadListFromUrl(url);
-
-    // Add the list to the listContainer
+    const list = await allNeeds();
     addStringsToList(list);
 });
 
 document.getElementById('clearNeeds').addEventListener('click', async function() {
-    // Define the URL from which the list will be downloaded
-    const url = '/needs'; // Replace with your actual URL
-
-    // Download the list from the URL
-    deleteResource(url);
-
-    // Add the list to the listContainer
+    clearNeeds();
     addStringsToList([]);
 });

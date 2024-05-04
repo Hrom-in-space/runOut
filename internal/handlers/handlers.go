@@ -61,7 +61,7 @@ func AddNeed(audioCh chan<- domain.Audio) http.HandlerFunc {
 }
 
 type NeedLister interface {
-	ListNeeds(ctx context.Context) ([]string, error)
+	ListNeeds(ctx context.Context) ([]domain.Need, error)
 }
 
 func ListNeeds(trm pg.Manager, repo NeedLister) http.HandlerFunc {
@@ -70,7 +70,7 @@ func ListNeeds(trm pg.Manager, repo NeedLister) http.HandlerFunc {
 		log := logger.FromCtx(ctx)
 
 		var err error
-		var needs []string
+		var needs []domain.Need
 		if err := trm.Do(ctx, func(ctx context.Context) error {
 			needs, err = repo.ListNeeds(ctx)
 			if err != nil {

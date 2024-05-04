@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"runout/internal/domain"
 	"runout/pkg/pg"
 )
 
@@ -15,13 +16,13 @@ func New() *Repo {
 	return &Repo{}
 }
 
-func (n *Repo) ListNeeds(ctx context.Context) ([]string, error) {
-	const query = "SELECT name FROM needs ORDER BY name"
+func (n *Repo) ListNeeds(ctx context.Context) ([]domain.Need, error) {
+	const query = "SELECT id, name FROM needs ORDER BY name"
 	rows, err := pg.MustTxFromCtx(ctx).Query(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("error querying needs: %w", err)
 	}
-	needs, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	needs, err := pgx.CollectRows(rows, pgx.RowToStructByName[domain.Need])
 	if err != nil {
 		return nil, err
 	}
