@@ -23,17 +23,7 @@ func AddNeed(audioCh chan<- domain.Audio) http.HandlerFunc {
 		log := logger.FromCtx(req.Context())
 		// enableCors(&w)
 		// TODO: security check real file type https://github.com/h2non/filetype
-		audioFormats := []string{
-			"webm",
-			"ogg",
-			"mp3",
-			"mp4",
-			"mpeg",
-			"flac",
-			"mpga",
-			"m4a",
-			"wav",
-		}
+		audioFormats := []string{"flac", "m4a", "mp3", "mp4", "mpeg", "mpga", "oga", "ogg", "wav", "webm"}
 
 		contentType := req.Header.Get("Content-Type")
 		format := strings.Replace(contentType, "audio/", "", 1)
