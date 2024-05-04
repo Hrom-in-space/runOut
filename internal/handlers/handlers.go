@@ -7,7 +7,10 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
+
+	"github.com/gorilla/mux"
 
 	"runout/internal/domain"
 	"runout/internal/utils"
@@ -104,6 +107,41 @@ func ClearNeeds(trm pg.Manager, repo NeedsCleaner) http.HandlerFunc {
 		var err error
 		if err := trm.Do(ctx, func(ctx context.Context) error {
 			err = repo.ClearNeeds(ctx)
+			if err != nil {
+				return fmt.Errorf("error getting needs: %w", err)
+			}
+
+			return nil
+		}); err != nil {
+			log.Error("ClearNeeds", logger.Error(err))
+			respWriter.WriteHeader(http.StatusInternalServerError)
+		}
+
+		respWriter.WriteHeader(http.StatusOK)
+	}
+}
+
+type NeedDeleter interface {
+	DeleteOne(ctx context.Context, id int) error
+}
+
+func DeleteOne(trm pg.Manager, repo NeedDeleter) http.HandlerFunc {
+	return func(respWriter http.ResponseWriter, req *http.Request) {
+		ctx := req.Context()
+		log := logger.FromCtx(ctx)
+		rawID := mux.Vars(req)["id"]
+		if rawID == "" {
+			respWriter.WriteHeader(http.StatusNotFound)
+			return
+		}
+		id, err := strconv.Atoi(rawID)
+		if err != nil {
+			respWriter.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		if err := trm.Do(ctx, func(ctx context.Context) error {
+			err = repo.DeleteOne(ctx, id)
 			if err != nil {
 				return fmt.Errorf("error getting needs: %w", err)
 			}

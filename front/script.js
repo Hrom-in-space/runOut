@@ -110,16 +110,36 @@ function addStringsToList(needs) {
     // For each string in the array, create a list item and append it to the unordered list
     needs.forEach(need => {
         const li = document.createElement('li');
-        li.textContent = need["name"];
+        li.textContent = need["name"] + "\u00A0\u00A0\u00A0 ";
 
         // Create a new button
         const button = document.createElement('button');
-        button.textContent = 'Send';
+        button.textContent = 'Del';
         button.className = 'send-button';
         button.dataset.id = need["id"];
 
         // Append the button to the list item
         li.appendChild(button);
+
+        // Add event listener to the button
+        button.addEventListener('click', function() {
+            const taskId = this.getAttribute('data-id');
+            fetch('/needs/' + taskId, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json', // Тип содержимого, которое мы отправляем
+                },
+            })
+                .then(response => {
+                    if (response.status === 200) {
+                        this.parentElement.remove(); // Remove the parent list item
+                    }
+                    console.log('Delete response:', response)
+                })
+                .catch((error) => {
+                    console.error('Error:', error); // Логируем возможную ошибку
+                });
+        });
 
         ul.appendChild(li);
     });
@@ -170,4 +190,23 @@ document.getElementById('listNeeds').addEventListener('click', async function() 
 document.getElementById('clearNeeds').addEventListener('click', async function() {
     clearNeeds();
     addStringsToList([]);
+});
+
+document.querySelectorAll('.send-button').forEach(button => {
+    button.addEventListener('click', function() {
+        const taskId = this.getAttribute('data-id');
+        fetch('/needs/' + taskId, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json', // Тип содержимого, которое мы отправляем
+            },
+        })
+            .then(response => response.json()) // Преобразуем ответ сервера в JSON
+            .then(data => {
+                console.log('Success:', data); // Логируем успех
+            })
+            .catch((error) => {
+                console.error('Error:', error); // Логируем возможную ошибку
+            });
+    });
 });
