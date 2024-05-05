@@ -1,25 +1,8 @@
-// let isEdge = navigator.userAgent.indexOf('Edge') !== -1 && (!!navigator.msSaveOrOpenBlob || !!navigator.msSaveBlob);
-// let isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-
 let recorder;
 let microphone;
 
 let btmRecord = document.getElementById('startRecord');
 
-// (function () {
-//     var old = console.log;
-//     var logger = document.getElementById('log');
-//     console.log = function () {
-//         for (var i = 0; i < arguments.length; i++) {
-//             if (typeof arguments[i] == 'object') {
-//                 logger.innerHTML += (JSON && JSON.stringify ? JSON.stringify(arguments[i], undefined, 2) : arguments[i]) ;
-//             } else {
-//                 logger.innerHTML += " " + arguments[i];
-//             }
-//         }
-//         logger.innerHTML += '<br />'
-//     }
-// })();
 
 function captureMicrophone(callback) {
     if(microphone) {
@@ -51,11 +34,6 @@ navigator.mediaDevices.getUserMedia({ audio: {echoCancellation:true} })
     .then(stream => {
         console.log('microphone access: success');
         stream.stop()
-        // recorder = RecordRTC(stream, {
-        //     type: 'audio',
-        //     mimeType: window.firstSupportedMimeType,
-        //     timeSlice: 1000
-        // });
     })
     .catch(error => {
         console.error('Error accessing the microphone', error);
@@ -99,22 +77,6 @@ btmRecord.onclick = function() {
 
             btmRecord.classList.add('recording');
             btmRecord.textContent = 'STOP';
-
-            // if(isSafari) {
-            //     replaceAudio();
-            //
-            //     // audio.muted = true;
-            //     // audio.srcObject = microphone;
-            //
-            //     // btnStartRecording.disabled = false;
-            //     // btnStartRecording.style.border = '1px solid red';
-            //     // btnStartRecording.style.fontSize = '150%';
-            //
-            //     alert('Please click startRecording button again. First time we tried to access your microphone. Now we will record it.');
-            //     return;
-            // }
-
-            // click(btnStartRecording);
         });
     } else {
         recorder.stopRecording(function() {
