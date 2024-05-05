@@ -21,7 +21,6 @@ import (
 func AddNeed(audioCh chan<- domain.Audio) http.HandlerFunc {
 	return func(writer http.ResponseWriter, req *http.Request) {
 		log := logger.FromCtx(req.Context())
-		// enableCors(&w)
 		// TODO: security check real file type https://github.com/h2non/filetype
 		audioFormats := []string{"flac", "m4a", "mp3", "mp4", "mpeg", "mpga", "oga", "ogg", "wav", "webm"}
 
@@ -42,6 +41,13 @@ func AddNeed(audioCh chan<- domain.Audio) http.HandlerFunc {
 			return
 		}
 		defer req.Body.Close()
+
+		if len(data) == 0 {
+			log.Error("empty data")
+			writer.WriteHeader(http.StatusBadRequest)
+
+			return
+		}
 
 		audioCh <- domain.Audio{
 			Data:   data,

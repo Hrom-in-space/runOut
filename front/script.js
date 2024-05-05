@@ -1,4 +1,20 @@
 let recorder;
+
+(function () {
+    var old = console.log;
+    var logger = document.getElementById('log');
+    console.log = function () {
+        for (var i = 0; i < arguments.length; i++) {
+            if (typeof arguments[i] == 'object') {
+                logger.innerHTML += (JSON && JSON.stringify ? JSON.stringify(arguments[i], undefined, 2) : arguments[i]) ;
+            } else {
+                logger.innerHTML += " " + arguments[i];
+            }
+        }
+        logger.innerHTML += '<br />'
+    }
+})();
+
 navigator.mediaDevices.getUserMedia({ audio: {echoCancellation:true} })
     .then(stream => {
         recorder = RecordRTC(stream, {
@@ -12,16 +28,19 @@ navigator.mediaDevices.getUserMedia({ audio: {echoCancellation:true} })
     });
 
 document.getElementById('startRecord').addEventListener('click', () => {
+    console.log('CLICK STATE: ', recorder.state);
     if (recorder && recorder.state === 'recording') {
         recorder.stopRecording(function() {
             let blob = recorder.getBlob();
             sendAudioBlob(blob);
             new Audio(URL.createObjectURL(blob)).play();
+            console.log('STOP STATE: ', recorder.state);
             document.getElementById('startRecord').classList.remove('recording');
             document.getElementById('startRecord').textContent = 'REC'
         });
     } else {
         recorder.startRecording();
+        console.log('START STATE: ', recorder.state);
         document.getElementById('startRecord').classList.add('recording');
         document.getElementById('startRecord').textContent = 'STOP';
     }
