@@ -1,50 +1,141 @@
-let recorder;
+// let isEdge = navigator.userAgent.indexOf('Edge') !== -1 && (!!navigator.msSaveOrOpenBlob || !!navigator.msSaveBlob);
+// let isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
-(function () {
-    var old = console.log;
-    var logger = document.getElementById('log');
-    console.log = function () {
-        for (var i = 0; i < arguments.length; i++) {
-            if (typeof arguments[i] == 'object') {
-                logger.innerHTML += (JSON && JSON.stringify ? JSON.stringify(arguments[i], undefined, 2) : arguments[i]) ;
-            } else {
-                logger.innerHTML += " " + arguments[i];
-            }
-        }
-        logger.innerHTML += '<br />'
+let recorder;
+let microphone;
+
+let btmRecord = document.getElementById('startRecord');
+
+// (function () {
+//     var old = console.log;
+//     var logger = document.getElementById('log');
+//     console.log = function () {
+//         for (var i = 0; i < arguments.length; i++) {
+//             if (typeof arguments[i] == 'object') {
+//                 logger.innerHTML += (JSON && JSON.stringify ? JSON.stringify(arguments[i], undefined, 2) : arguments[i]) ;
+//             } else {
+//                 logger.innerHTML += " " + arguments[i];
+//             }
+//         }
+//         logger.innerHTML += '<br />'
+//     }
+// })();
+
+function captureMicrophone(callback) {
+    if(microphone) {
+        callback(microphone);
+        return;
     }
-})();
+
+    if(typeof navigator.mediaDevices === 'undefined' || !navigator.mediaDevices.getUserMedia) {
+        alert('This browser does not supports WebRTC getUserMedia API.');
+
+        if(!!navigator.getUserMedia) {
+            alert('This browser seems supporting deprecated getUserMedia API.');
+        }
+    }
+
+    navigator.mediaDevices.getUserMedia({
+        audio: isEdge ? true : {
+            echoCancellation: false
+        }
+    }).then(function(mic) {
+        callback(mic);
+    }).catch(function(error) {
+        alert('Unable to capture your microphone. Please check console logs.');
+        console.error(error);
+    });
+}
 
 navigator.mediaDevices.getUserMedia({ audio: {echoCancellation:true} })
     .then(stream => {
-        recorder = RecordRTC(stream, {
-            type: 'audio',
-            mimeType: window.firstSupportedMimeType,
-            timeSlice: 1000
-        });
+        console.log('microphone access: success');
+        stream.stop()
+        // recorder = RecordRTC(stream, {
+        //     type: 'audio',
+        //     mimeType: window.firstSupportedMimeType,
+        //     timeSlice: 1000
+        // });
     })
     .catch(error => {
         console.error('Error accessing the microphone', error);
     });
 
-document.getElementById('startRecord').addEventListener('click', () => {
-    console.log('CLICK STATE: ', recorder.state);
-    if (recorder && recorder.state === 'recording') {
+btmRecord.onclick = function() {
+    // Record audio
+    if (!microphone) {
+        captureMicrophone(function(mic) {
+            microphone = mic;
+
+            let options = {
+                type: 'audio',
+                numberOfAudioChannels: isEdge ? 1 : 2,
+                checkForInactiveTracks: true,
+                bufferSize: 16384
+            };
+
+            if(isSafari || isEdge) {
+                options.recorderType = StereoAudioRecorder;
+            }
+
+            if(navigator.platform && navigator.platform.toString().toLowerCase().indexOf('win') === -1) {
+                options.sampleRate = 48000; // or 44100 or remove this line for default
+            }
+
+            if(isSafari) {
+                options.sampleRate = 44100;
+                options.bufferSize = 4096;
+                options.numberOfAudioChannels = 2;
+            }
+
+            if(recorder) {
+                recorder.destroy();
+                recorder = null;
+            }
+
+            recorder = RecordRTC(microphone, options);
+
+            recorder.startRecording();
+
+            btmRecord.classList.add('recording');
+            btmRecord.textContent = 'STOP';
+
+            // if(isSafari) {
+            //     replaceAudio();
+            //
+            //     // audio.muted = true;
+            //     // audio.srcObject = microphone;
+            //
+            //     // btnStartRecording.disabled = false;
+            //     // btnStartRecording.style.border = '1px solid red';
+            //     // btnStartRecording.style.fontSize = '150%';
+            //
+            //     alert('Please click startRecording button again. First time we tried to access your microphone. Now we will record it.');
+            //     return;
+            // }
+
+            // click(btnStartRecording);
+        });
+    } else {
         recorder.stopRecording(function() {
             let blob = recorder.getBlob();
             sendAudioBlob(blob);
             new Audio(URL.createObjectURL(blob)).play();
+
             console.log('STOP STATE: ', recorder.state);
             document.getElementById('startRecord').classList.remove('recording');
             document.getElementById('startRecord').textContent = 'REC'
+
+            recorder.destroy();
+            recorder = null;
+
+            microphone.stop();
+            microphone = null;
         });
-    } else {
-        recorder.startRecording();
-        console.log('START STATE: ', recorder.state);
-        document.getElementById('startRecord').classList.add('recording');
-        document.getElementById('startRecord').textContent = 'STOP';
+
     }
-});
+};
+
 
 function sendAudioBlob(audioBlob) {
     fetch('/needs', {
