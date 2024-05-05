@@ -96,6 +96,9 @@ func main() {
 
 	go func() {
 		for text := range reqChan {
+			if true {
+				continue
+			}
 			err := assistanRunnerService.Run(ctx, text)
 			if err != nil {
 				log.Error("Run", logger.Error(err))

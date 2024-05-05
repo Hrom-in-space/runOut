@@ -11,32 +11,19 @@ navigator.mediaDevices.getUserMedia({ audio: {echoCancellation:true} })
         console.error('Error accessing the microphone', error);
     });
 
-function startRecording() {
-    if (recorder && recorder.state !== 'recording') {
-        recorder.startRecording();
-        document.getElementById('startRecord').textContent = 'STOP';
-    }
-}
-
-function stopRecording() {
-    if (recorder && recorder.state === 'recording') {
-        recorder.stopRecording(() => {
-            let blob = recorder.getBlob();
-            sendAudioBlob(blob);
-            playAudio(URL.createObjectURL(blob));
-        });
-        document.getElementById('startRecord').textContent = 'REC';
-    }
-}
-
-// let startRecordButton = document.getElementById('startRecord');
 document.getElementById('startRecord').addEventListener('click', () => {
     if (recorder && recorder.state === 'recording') {
-        stopRecording();
-        document.getElementById('startRecord').classList.remove('recording');
+        recorder.stopRecording(function() {
+            let blob = recorder.getBlob();
+            sendAudioBlob(blob);
+            new Audio(URL.createObjectURL(blob)).play();
+            document.getElementById('startRecord').classList.remove('recording');
+            document.getElementById('startRecord').textContent = 'REC'
+        });
     } else {
-        startRecording();
+        recorder.startRecording();
         document.getElementById('startRecord').classList.add('recording');
+        document.getElementById('startRecord').textContent = 'STOP';
     }
 });
 
@@ -55,11 +42,6 @@ function sendAudioBlob(audioBlob) {
         .catch(error => {
             console.error('Ошибка отправки:', error);
         });
-}
-
-function playAudio(audioUrl) {
-    let audio = new Audio(audioUrl);
-    audio.play();
 }
 
 document.addEventListener('DOMContentLoaded', function() {
