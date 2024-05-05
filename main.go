@@ -81,9 +81,9 @@ func main() {
 			log.Info("Audio received", slog.String("format", audio.Format))
 			text, err := voiceToTextService.ProcessVoice(ctx, audio)
 			if err != nil {
-				fileName, err := saveAudio(audio.Data, audio.Format)
-				if err != nil {
-					log.Error("saveAudio", logger.Error(err))
+				fileName, fnErr := saveAudio(audio.Data, audio.Format)
+				if fnErr != nil {
+					log.Error("saveAudio", logger.Error(fnErr))
 				}
 				log.Error(fmt.Sprintf("ProcessVoice: %v", fileName), logger.Error(err))
 
