@@ -197,7 +197,6 @@
                         });
                     }
                     function record() {
-                        let btmRecord = document.getElementById('startRecord');
                         // Record audio
                         if (!microphone) {
                             captureMicrophone(function(mic) {
@@ -234,9 +233,6 @@
                                 recorder.startRecording();
 
                                 isRecording.value = true;
-
-                                // btmRecord.classList.add('recording');
-                                // btmRecord.textContent = 'STOP';
                             });
                         } else {
                             recorder.stopRecording(function() {
@@ -246,8 +242,6 @@
 
                                 console.log('STOP STATE: ', recorder.state);
                                 isRecording.value = false;
-                                // document.getElementById('startRecord').classList.remove('recording');
-                                // document.getElementById('startRecord').textContent = 'REC'
 
                                 recorder.destroy();
                                 recorder = null;
