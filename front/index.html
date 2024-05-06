@@ -87,7 +87,6 @@
         </div>
 
         <script src="https://cdn.webrtc-experiment.com/RecordRTC.js"></script>
-        <script src="./script.js"></script>
         <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
         <script>
             const { createApp, ref } = Vue
@@ -190,6 +189,7 @@
                         });
                     }
                     function record() {
+                        let btmRecord = document.getElementById('startRecord');
                         // Record audio
                         if (!microphone) {
                             captureMicrophone(function(mic) {
