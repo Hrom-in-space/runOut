@@ -24,6 +24,7 @@ func (v *VoiceToTextService) ProcessVoice(ctx context.Context, voice domain.Audi
 		Model:    "whisper-1",
 		Reader:   bytes.NewReader(voice.Data),
 		FilePath: "need." + voice.Format,
+		Language: "ru",
 	}
 	resp, err := v.oaiClient.CreateTranscription(ctx, request)
 	if err != nil {
