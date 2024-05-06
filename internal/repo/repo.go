@@ -17,7 +17,7 @@ func New() *Repo {
 }
 
 func (n *Repo) ListNeeds(ctx context.Context) ([]domain.Need, error) {
-	const query = "SELECT id, name FROM needs ORDER BY name"
+	const query = "SELECT id, name FROM needs ORDER BY id"
 	rows, err := pg.MustTxFromCtx(ctx).Query(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("error querying needs: %w", err)

@@ -81,7 +81,7 @@
             </ul>
             <div class="bottom-nav">
                 <button @click="allNeeds()" class="actions" >List</button>
-                <button @click="record()" id="startRecord" class="startRecord">REC</button>
+                <button @click="record()" :class="classObject">{{ recStatus }}</button>
                 <button @click="clearNeeds()" class="actions" >Clear</button>
             </div>
         </div>
@@ -89,14 +89,22 @@
         <script src="https://cdn.webrtc-experiment.com/RecordRTC.js"></script>
         <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
         <script>
-            const { createApp, ref } = Vue
+            const { createApp, ref, computed } = Vue
 
             createApp({
                 setup() {
+                    const isRecording = ref(false);
                     const items = ref([])
                     let firstSupportedMimeType;
                     let microphone;
                     let recorder;
+
+                    const classObject = computed(() => ({
+                        recording: isRecording.value,
+                        startRecord: true,
+                    }));
+
+                    const recStatus = computed(() => isRecording.value ? "REC" : "STOP");
 
                     function clearNeeds() {
                         fetch("/needs", {
@@ -225,8 +233,10 @@
 
                                 recorder.startRecording();
 
-                                btmRecord.classList.add('recording');
-                                btmRecord.textContent = 'STOP';
+                                isRecording.value = true;
+
+                                // btmRecord.classList.add('recording');
+                                // btmRecord.textContent = 'STOP';
                             });
                         } else {
                             recorder.stopRecording(function() {
@@ -235,8 +245,9 @@
                                 new Audio(URL.createObjectURL(blob)).play();
 
                                 console.log('STOP STATE: ', recorder.state);
-                                document.getElementById('startRecord').classList.remove('recording');
-                                document.getElementById('startRecord').textContent = 'REC'
+                                isRecording.value = false;
+                                // document.getElementById('startRecord').classList.remove('recording');
+                                // document.getElementById('startRecord').textContent = 'REC'
 
                                 recorder.destroy();
                                 recorder = null;
@@ -274,7 +285,9 @@
                         clearNeeds,
                         allNeeds,
                         delNeed,
-                        record
+                        record,
+                        classObject,
+                        recStatus
                     }
                 }
             }).mount('#app')
