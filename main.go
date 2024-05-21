@@ -67,7 +67,10 @@ func main() {
 	trManager := pg.NewTxManager(dbPool)
 	repo := repo.New()
 
-	oaiClient := openai.NewClient(cfg.OpenAI.APIKey)
+	OAIConfig := openai.DefaultConfig(cfg.OpenAI.APIKey)
+	OAIConfig.AssistantVersion = "v2"
+	oaiClient := openai.NewClientWithConfig(OAIConfig)
+
 	voiceToTextService := services.NewVoiceToTextService(oaiClient)
 	assistanRunnerService := services.NewAssistantManager(oaiClient, trManager, repo, cfg.OpenAI.AssistantID)
 

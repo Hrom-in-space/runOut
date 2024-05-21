@@ -73,11 +73,8 @@ func (m *AssistantManager) Run(ctx context.Context, text string) error {
 			var successIDs []string
 			for _, call := range run.RequiredAction.SubmitToolOutputs.ToolCalls {
 				if call.Function.Name == "addNeed" {
+					log.Info("func addNeed", slog.String("raw args", call.Function.Arguments))
 					need, err := parseNeedsArgs(call.Function.Arguments)
-					log.Info(
-						"raw args",
-						slog.String("example", fmt.Sprintf("|%v|", "abc")),
-						slog.String("raw args", fmt.Sprintf("|%v|", call.Function.Arguments)))
 					if err != nil {
 						return fmt.Errorf("parse needs args: %w", err)
 					}
