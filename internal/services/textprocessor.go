@@ -104,8 +104,10 @@ func (m *AssistantManager) Run(ctx context.Context, text string) error {
 			return fmt.Errorf("run failed at %v with %v:%v", run.FailedAt, run.LastError.Code, run.LastError.Message)
 		case openai.RunStatusExpired:
 			return fmt.Errorf("run expired")
-		case openai.RunStatusCancelling:
+		case openai.RunStatusCancelling, openai.RunStatusCancelled:
 			return fmt.Errorf("run cancelling")
+		default:
+			return fmt.Errorf("unknown run status: %v", run.Status)
 		}
 		time.Sleep(defaultTimeout)
 	}
