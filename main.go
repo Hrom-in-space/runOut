@@ -31,7 +31,7 @@ import (
 // TODO: fix all slog messages
 // TODO: удалять треды через сутки в фоне
 
-//go:embed front/*
+//go:embed front/dist/*
 var static embed.FS
 
 //nolint:funlen,cyclop
@@ -107,12 +107,12 @@ func main() {
 	}()
 
 	router := mux.NewRouter()
-	router.Path("/needs").Methods(http.MethodPost).Handler(handlers.AddNeed(audioChan))
-	router.Path("/needs").Methods(http.MethodGet).Handler(handlers.ListNeeds(trManager, repo))
-	router.Path("/needs").Methods(http.MethodDelete).Handler(handlers.ClearNeeds(trManager, repo))
-	router.Path("/needs/{id}").Methods(http.MethodDelete).Handler(handlers.DeleteOne(trManager, repo))
+	router.Path("/api/needs").Methods(http.MethodPost).Handler(handlers.AddNeed(audioChan))
+	router.Path("/api/needs").Methods(http.MethodGet).Handler(handlers.ListNeeds(trManager, repo))
+	router.Path("/api/needs").Methods(http.MethodDelete).Handler(handlers.ClearNeeds(trManager, repo))
+	router.Path("/api/needs/{id}").Methods(http.MethodDelete).Handler(handlers.DeleteOne(trManager, repo))
 
-	static, err := fs.Sub(static, "front")
+	static, err := fs.Sub(static, "front/dist")
 	if err != nil {
 		log.Error("Sub", logger.Error(err))
 		os.Exit(1) //nolint:gocritic

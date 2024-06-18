@@ -1,0 +1,63 @@
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  background-color: #333;
+  color: white;
+  text-align: center;
+  display: flex;
+  justify-content: space-evenly;
+  align-items: center;
+  height: 50px; /* Установим фиксированную высоту панели */
+  padding-bottom: 5vw; /* Уменьшим padding для компенсации выступающей кнопки */
+  box-sizing: border-box;
+}
+
+.actions {
+  margin-top: 20px;
+  padding: 10px 15px;
+  text-decoration: none;
+  color: white;
+  display: inline-block;
+  flex-grow: 1;
+  background-color: transparent;
+  border: none; /* Add this line to remove borders */
+}
+
+.startRecord {
+  border-radius: 50%; /* Круглая форма */
+  width: 20vw; /* Уменьшим размеры кнопки, если это необходимо */
+  height: 20vw;
+  background-color: #4CAF50; /* Зеленый фон */
+  color: white; /* Белый текст */
+  border: none;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 24px;
+  margin: 4px 2px;
+  cursor: pointer;
+  transition-duration: 0.4s;
+  position: relative;
+  bottom: 2.5vw; /* Меньшее выступание кнопки вниз */
+  z-index: 1;
+}
+
+.startRecord:hover {
+  background-color: #45a049; /* Изменение фона при наведении */
+}
+
+.recording {
+  background-color: #FF0000; /* Красный фон */
+  animation: blink 1s linear infinite;
+}
+
+.recording:hover {
+  background-color: #B22222; /* Изменение фона при наведении */
+}
+
+@keyframes blink {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
