@@ -10,7 +10,6 @@ let microphone;
 let recorder;
 
 const recStatus = computed(() => isRecording.value ? "REC" : "STOP");
-
 const classObject = computed(() => ({
   recording: isRecording.value,
   startRecord: true,
@@ -67,62 +66,78 @@ function captureMicrophone(callback) {
     console.error(error);
   });
 }
-function record() {
-  // Record audio
-  if (!microphone) {
-    captureMicrophone(function(mic) {
-      microphone = mic;
 
-      let options = {
-        type: 'audio',
-        numberOfAudioChannels: isEdge ? 1 : 2,
-        checkForInactiveTracks: true,
-        bufferSize: 16384
-      };
+function startRecording() {
+  captureMicrophone(function(mic) {
+    microphone = mic;
 
-      if(isSafari || isEdge) {
-        options.recorderType = StereoAudioRecorder;
-      }
+    let options = {
+      type: 'audio',
+      numberOfAudioChannels: isEdge ? 1 : 2,
+      checkForInactiveTracks: true,
+      bufferSize: 16384
+    };
 
-      if(navigator.platform && navigator.platform.toString().toLowerCase().indexOf('win') === -1) {
-        options.sampleRate = 48000; // or 44100 or remove this line for default
-      }
+    if (isSafari || isEdge) {
+      options.recorderType = StereoAudioRecorder;
+    }
 
-      if(isSafari) {
-        options.sampleRate = 44100;
-        options.bufferSize = 4096;
-        options.numberOfAudioChannels = 2;
-      }
+    if (navigator.platform && navigator.platform.toString().toLowerCase().indexOf('win') === -1) {
+      options.sampleRate = 48000; // or 44100 or remove this line for default
+    }
 
-      if(recorder) {
-        recorder.destroy();
-        recorder = null;
-      }
+    if (isSafari) {
+      options.sampleRate = 44100;
+      options.bufferSize = 4096;
+      options.numberOfAudioChannels = 2;
+    }
 
-      recorder = RecordRTC(microphone, options);
-
-      recorder.startRecording();
-
-      isRecording.value = true;
-    });
-  } else {
-    recorder.stopRecording(function() {
-      let blob = recorder.getBlob();
-      sendAudioBlob(blob);
-      new Audio(URL.createObjectURL(blob)).play();
-
-      console.log('STOP STATE: ', recorder.state);
-      isRecording.value = false;
-
+    if (recorder) {
       recorder.destroy();
       recorder = null;
+    }
 
-      microphone.stop();
-      microphone = null;
-    });
+    recorder = RecordRTC(microphone, options);
 
-  }
+    recorder.startRecording();
+
+    isRecording.value = true;
+  });
 }
+
+function stopRecording() {
+  recorder.stopRecording(function() {
+    let blob = recorder.getBlob();
+    sendAudioBlob(blob);
+    new Audio(URL.createObjectURL(blob)).play();
+
+    console.log('STOP STATE: ', recorder.state);
+    isRecording.value = false;
+
+    recorder.destroy();
+    recorder = null;
+
+    microphone.stop();
+    microphone = null;
+
+    setTimeout(() => {
+      store.allNeeds()
+    }, 1000)
+    setTimeout(() => {
+      store.allNeeds()
+    }, 2000)
+    setTimeout(() => {
+      store.allNeeds()
+    }, 3000)
+    setTimeout(() => {
+      store.allNeeds()
+    }, 4000)
+    setTimeout(() => {
+      store.allNeeds()
+    }, 5000)
+  });
+}
+
 function detectMimeType() {
   function getAllSupportedMimeTypes(...mediaTypes) {
     if (!mediaTypes.length) mediaTypes.push('audio');  // Задаем по умолчанию 'audio', если типы не указаны
@@ -149,9 +164,27 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="bottom-nav">
-    <button @click="store.allNeeds" class="actions" >List</button>
-    <button @click="record()" :class="classObject">{{ recStatus }}</button>
-    <button @click="store.clearNeeds" class="actions" >Clear</button>
-  </div>
+  <menu
+    class="main-menu"
+    style="background: url(/image/menu.svg) center/cover no-repeat"
+  >
+    <div class="menu-buttons">
+      <button @click="store.allNeeds" class="menu-btn">
+        <img src="/icons/openMenu.svg" class="menu-btn-icon" alt="Меню" />
+      </button>
+      <button @click="store.clearNeeds" class="menu-btn">
+        <img src="/icons/trash.svg" class="menu-btn-icon" alt="Удалить" />
+      </button>
+    </div>
+    <div @mousedown="startRecording" @mouseup="stopRecording" class="menu-micro-container">
+      <img
+        class="menu-micro-active"
+        src="/icons/menu-micro-active.svg"
+        alt=""
+      />
+      <div class="menu-micro">
+        <img class="menu-micro-icon" src="/icons/micro.svg" alt="" />
+      </div>
+    </div>
+  </menu>
 </template>
