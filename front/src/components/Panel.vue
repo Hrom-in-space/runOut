@@ -102,6 +102,7 @@ function startRecording() {
     recorder.startRecording();
 
     isRecording.value = true;
+    isActive.value = true
   });
 }
 
@@ -119,6 +120,8 @@ function stopRecording() {
 
     microphone.stop();
     microphone = null;
+
+    isActive.value = false;
 
     setTimeout(() => {
       store.allNeeds()
@@ -161,6 +164,8 @@ onMounted(() => {
   initStream()
 })
 
+const isActive = ref(false);
+
 </script>
 
 <template>
@@ -176,7 +181,7 @@ onMounted(() => {
         <img src="/icons/trash.svg" class="menu-btn-icon" alt="Удалить" />
       </button>
     </div>
-    <div @mousedown="startRecording" @mouseup="stopRecording" class="menu-micro-container">
+    <div @touchstart="startRecording" @touchend="stopRecording" class="menu-micro-container" :class="{ active: isActive }">
       <img
         class="menu-micro-active"
         src="/icons/menu-micro-active.svg"
