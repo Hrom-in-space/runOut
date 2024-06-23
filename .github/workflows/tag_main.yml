@@ -21,15 +21,12 @@ jobs:
         run: |
           GOOS=linux GOARCH=amd64 go build -o runout-linux-amd64
           GOOS=darwin GOARCH=arm64 go build -o runout-darwin-arm64
-      - name: create-archive
-        run: tar -czf migrations.tar.gz -C ./migrations .
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             runout-linux-amd64
             runout-darwin-arm64
-            migrations.tar.gz
       - name: Deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
