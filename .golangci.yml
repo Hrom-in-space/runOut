@@ -43,3 +43,5 @@ linters-settings:
       - error
       - stdlib
       - github.com/jackc/pgx/v5.Tx
+  varnamelen:
+    ignore-names: db

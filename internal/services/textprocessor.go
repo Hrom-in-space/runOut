@@ -8,29 +8,26 @@ import (
 	"time"
 
 	"github.com/sashabaranov/go-openai"
+	"gorm.io/gorm"
 
-	"runout/internal/repo"
+	"runout/internal/models"
 	"runout/pkg/logger"
-	"runout/pkg/pg"
 )
 
 type AssistantManager struct {
 	oaiClient   *openai.Client
-	trm         *pg.TxManager
-	repo        *repo.Repo
+	db          *gorm.DB
 	assistantID string
 }
 
 func NewAssistantManager(
 	oaiClient *openai.Client,
-	trm *pg.TxManager,
-	repo *repo.Repo,
+	db *gorm.DB,
 	assistantID string,
 ) *AssistantManager {
 	return &AssistantManager{
 		oaiClient:   oaiClient,
-		trm:         trm,
-		repo:        repo,
+		db:          db,
 		assistantID: assistantID,
 	}
 }
@@ -78,7 +75,7 @@ func (m *AssistantManager) Run(ctx context.Context, text string) error {
 					if err != nil {
 						return fmt.Errorf("parse needs args: %w", err)
 					}
-					err = AddNeed(ctx, m.trm, m.repo, need)
+					err = AddNeed(m.db, need)
 					if err != nil {
 						return fmt.Errorf("add need in DB: %w", err)
 					}
@@ -113,20 +110,10 @@ func (m *AssistantManager) Run(ctx context.Context, text string) error {
 	}
 }
 
-type NeedAdder interface {
-	AddNeed(ctx context.Context, need string) error
-}
-
-func AddNeed(ctx context.Context, trm pg.Manager, repo NeedAdder, need string) error {
-	if err := trm.Do(ctx, func(ctx context.Context) error {
-		err := repo.AddNeed(ctx, need)
-		if err != nil {
-			return fmt.Errorf("error add need: %w", err)
-		}
-
-		return nil
-	}); err != nil {
-		return err
+func AddNeed(db *gorm.DB, need string) error {
+	result := db.Create(&models.Need{Name: need})
+	if result.Error != nil {
+		return fmt.Errorf("error adding need: %w", result.Error)
 	}
 
 	return nil

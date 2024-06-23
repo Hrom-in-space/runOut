@@ -1,9 +1,7 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -11,11 +9,12 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 
 	"runout/internal/domain"
+	"runout/internal/models"
 	"runout/internal/utils"
 	"runout/pkg/logger"
-	"runout/pkg/pg"
 )
 
 func AddNeed(audioCh chan<- domain.Audio) http.HandlerFunc {
@@ -59,31 +58,22 @@ func AddNeed(audioCh chan<- domain.Audio) http.HandlerFunc {
 	}
 }
 
-type NeedLister interface {
-	ListNeeds(ctx context.Context) ([]domain.Need, error)
-}
-
-func ListNeeds(trm pg.Manager, repo NeedLister) http.HandlerFunc {
+func ListNeeds(db *gorm.DB) http.HandlerFunc {
 	return func(respWriter http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		log := logger.FromCtx(ctx)
 
-		var err error
-		var needs []domain.Need
-		if err := trm.Do(ctx, func(ctx context.Context) error {
-			needs, err = repo.ListNeeds(ctx)
-			if err != nil {
-				return fmt.Errorf("error getting needs: %w", err)
-			}
-
-			return nil
-		}); err != nil {
-			log.Error("ListNeeds", logger.Error(err))
+		var needs []models.Need
+		result := db.Find(&needs)
+		if result.Error != nil {
+			log.Error("ListNeeds", logger.Error(result.Error))
 			respWriter.WriteHeader(http.StatusInternalServerError)
+
+			return
 		}
 
 		respWriter.Header().Set("Content-Type", "application/json")
-		err = json.NewEncoder(respWriter).Encode(needs)
+		err := json.NewEncoder(respWriter).Encode(needs)
 		if err != nil {
 			log.Error("Encode needs", logger.Error(err))
 			respWriter.WriteHeader(http.StatusInternalServerError)
@@ -91,37 +81,24 @@ func ListNeeds(trm pg.Manager, repo NeedLister) http.HandlerFunc {
 	}
 }
 
-type NeedsCleaner interface {
-	ClearNeeds(ctx context.Context) error
-}
-
-func ClearNeeds(trm pg.Manager, repo NeedsCleaner) http.HandlerFunc {
+func ClearNeeds(db *gorm.DB) http.HandlerFunc {
 	return func(respWriter http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		log := logger.FromCtx(ctx)
 
-		var err error
-		if err := trm.Do(ctx, func(ctx context.Context) error {
-			err = repo.ClearNeeds(ctx)
-			if err != nil {
-				return fmt.Errorf("error getting needs: %w", err)
-			}
-
-			return nil
-		}); err != nil {
-			log.Error("ClearNeeds", logger.Error(err))
+		result := db.Where("id > ?", "0").Delete(&models.Need{})
+		if result.Error != nil {
+			log.Error("ClearNeeds", logger.Error(result.Error))
 			respWriter.WriteHeader(http.StatusInternalServerError)
+
+			return
 		}
 
 		respWriter.WriteHeader(http.StatusOK)
 	}
 }
 
-type NeedDeleter interface {
-	DeleteOne(ctx context.Context, id int) error
-}
-
-func DeleteOne(trm pg.Manager, repo NeedDeleter) http.HandlerFunc {
+func DeleteOne(db *gorm.DB) http.HandlerFunc {
 	return func(respWriter http.ResponseWriter, req *http.Request) {
 		ctx := req.Context()
 		log := logger.FromCtx(ctx)
@@ -136,16 +113,12 @@ func DeleteOne(trm pg.Manager, repo NeedDeleter) http.HandlerFunc {
 			return
 		}
 
-		if err := trm.Do(ctx, func(ctx context.Context) error {
-			err = repo.DeleteOne(ctx, needID)
-			if err != nil {
-				return fmt.Errorf("error getting needs: %w", err)
-			}
-
-			return nil
-		}); err != nil {
-			log.Error("ClearNeeds", logger.Error(err))
+		result := db.Delete(&models.Need{ID: needID})
+		if result.Error != nil {
+			log.Error("ClearNeeds", logger.Error(result.Error))
 			respWriter.WriteHeader(http.StatusInternalServerError)
+
+			return
 		}
 
 		respWriter.WriteHeader(http.StatusOK)

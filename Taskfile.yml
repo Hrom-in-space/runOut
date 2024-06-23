@@ -20,20 +20,12 @@ tasks:
     cmds:
       - go run main.go
 
-  devdb.up:
+  db.up:
     cmds:
       - docker-compose up
-  devdb.down:
+  db.down:
     cmds:
       - docker-compose down
-
-  migration.create:
-    cmds:
-      - migrate create -seq -ext sql -dir ./internal/db/migrations/ {{.CLI_ARGS}}
-
-  migration:
-    cmds:
-      - migrate -database postgres://app:app@localhost:5432/app?sslmode=disable -path ./migrations/ {{.CLI_ARGS}}
 
   ngrok.start:
     cmds:

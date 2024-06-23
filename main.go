@@ -12,18 +12,18 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
 	"github.com/sashabaranov/go-openai"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 
 	"runout/internal/config"
 	"runout/internal/domain"
 	"runout/internal/handlers"
-	"runout/internal/repo"
+	"runout/internal/models"
 	"runout/internal/services"
 	"runout/pkg/httpserver"
 	"runout/pkg/logger"
-	"runout/pkg/pg"
 )
 
 // TODO: split to handlers/services/repositories
@@ -53,26 +53,23 @@ func main() {
 		"postgres://%s:%s@%s/%s?sslmode=disable",
 		cfg.PG.Username, cfg.PG.Password, net.JoinHostPort(cfg.PG.Host, cfg.PG.Port), cfg.PG.Database,
 	)
-	dbPool, err := pgxpool.New(ctx, connStr)
+	db, err := gorm.Open(postgres.Open(connStr), &gorm.Config{})
 	if err != nil {
-		log.Error("Unable to create connection pool", logger.Error(err))
-		os.Exit(1)
+		panic("failed to connect database")
 	}
-	err = dbPool.Ping(ctx)
-	if err != nil {
-		log.Error("Error database connection", logger.Error(err))
-	}
-	defer dbPool.Close()
 
-	trManager := pg.NewTxManager(dbPool)
-	repo := repo.New()
+	err = db.AutoMigrate(&models.Need{})
+	if err != nil {
+		log.Error("AutoMigrate", logger.Error(err))
+		return
+	}
 
 	OAIConfig := openai.DefaultConfig(cfg.OpenAI.APIKey)
 	OAIConfig.AssistantVersion = "v2"
 	oaiClient := openai.NewClientWithConfig(OAIConfig)
 
 	voiceToTextService := services.NewVoiceToTextService(oaiClient)
-	assistanRunnerService := services.NewAssistantManager(oaiClient, trManager, repo, cfg.OpenAI.AssistantID)
+	assistanRunnerService := services.NewAssistantManager(oaiClient, db, cfg.OpenAI.AssistantID)
 
 	const audioChanSize = 1000
 	audioChan := make(chan domain.Audio, audioChanSize)
@@ -108,14 +105,14 @@ func main() {
 
 	router := mux.NewRouter()
 	router.Path("/api/needs").Methods(http.MethodPost).Handler(handlers.AddNeed(audioChan))
-	router.Path("/api/needs").Methods(http.MethodGet).Handler(handlers.ListNeeds(trManager, repo))
-	router.Path("/api/needs").Methods(http.MethodDelete).Handler(handlers.ClearNeeds(trManager, repo))
-	router.Path("/api/needs/{id}").Methods(http.MethodDelete).Handler(handlers.DeleteOne(trManager, repo))
+	router.Path("/api/needs").Methods(http.MethodGet).Handler(handlers.ListNeeds(db))
+	router.Path("/api/needs").Methods(http.MethodDelete).Handler(handlers.ClearNeeds(db))
+	router.Path("/api/needs/{id}").Methods(http.MethodDelete).Handler(handlers.DeleteOne(db))
 
 	static, err := fs.Sub(static, "front/dist")
 	if err != nil {
 		log.Error("Sub", logger.Error(err))
-		os.Exit(1) //nolint:gocritic
+		os.Exit(1)
 	}
 	router.PathPrefix("/").Handler(http.StripPrefix("/", http.FileServerFS(static)))
 	// TODO: graceful shutdown
